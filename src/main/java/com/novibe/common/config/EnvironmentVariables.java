@@ -14,4 +14,10 @@ public class EnvironmentVariables {
 
     public static final String REDIRECT = System.getenv("REDIRECT");
 
+    public static final String NEXTDNS_MAX_REQUESTS_PER_SECOND = System.getenv("NEXTDNS_MAX_REQUESTS_PER_SECOND");
+
+    public static final String NEXTDNS_MAX_REQUESTS_PER_MINUTE = System.getenv("NEXTDNS_MAX_REQUESTS_PER_MINUTE");
+
+    public static final String NEXTDNS_RATE_LIMIT_BACKOFF_SECONDS = System.getenv("NEXTDNS_RATE_LIMIT_BACKOFF_SECONDS");
+
 }
