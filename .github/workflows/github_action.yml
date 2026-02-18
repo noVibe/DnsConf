@@ -24,17 +24,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 25
-        uses: actions/setup-java@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
         with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+          node-version: '22'
+          cache: 'npm'
 
-      - name: Build with Maven
-        run: mvn -B clean package
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run application
-        run: |
-          echo "Starting application..."
-          java --enable-preview -jar target/*.jar
+        run: node src/app.js

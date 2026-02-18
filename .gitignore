@@ -1,36 +1,31 @@
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-.kotlin
+### Environment variables ###
+.env
+.env.local
+.env.*.local
 
-### IntelliJ IDEA ###
+### Node.js ###
+node_modules/
+!.npmrc
+npm-debug.log*
+.yarn-integrity
+.pnp.*
+!.yarnrc.yml
+
+### TypeScript ###
+dist/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+### IDE ###
 .idea/
 *.iws
 *.iml
 *.ipr
-
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
 .vscode/
 
 ### Mac OS ###
 .DS_Store
+
+### Coverage ###
+coverage/
+.nyc_output/

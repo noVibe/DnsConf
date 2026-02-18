@@ -1,140 +1,241 @@
-🌐 Languages: [󠁧󠁢󠁥󠁮󠁧󠁿**English**](README.md) | [**Русский**](README.ru.md)
+🌐 Languages: [**English**](README.md) | [**Русский**](README.ru.md)
 
 # DNS Block&Redirect Configurer
-**Allows to set Redirect and Block rules to your Cloudflare and NextDNS accounts.**
 
-**Ready-to-run via GitHub Actions.** [Video guide](#step-by-step-video-guide-redirect-for-nextdns)
+**Automates DNS block and redirect rules for Cloudflare and NextDNS providers.**
 
-[General comparison: Cloudflare vs NextDNS](#cloudflare-vs-nextdns)
+**Ready-to-run via GitHub Actions or locally with Node.js 22+.** [Video guide](#step-by-step-video-guide-redirect-for-nextdns)
 
-[Setup credentials: Cloudflare](#cloudflare-credentials-setup)
+## Quick Start
 
-[Setup credentials: NextDNS](#nextdns-credentials-setup)
+### Local Usage
 
-[Setup profile](#setup-profile)
+```bash
+# Clone and install
+git clone <repository-url>
+cd dns-block-and-redirect-configurer
+npm install
 
-[Setup data sources](#setup-data-sources)
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials
 
-[GitHub Actions](#github-actions-setup)
+# Run
+npm run build
+npm start
+```
+
+### GitHub Actions
+
+Automatically runs daily at 01:30 UTC. See [setup instructions](#github-actions-setup).
+
+---
+
+## Table of Contents
+
+- [Cloudflare vs NextDNS](#cloudflare-vs-nextdns)
+- [Credentials Setup](#credentials-setup)
+- [Configuration](#configuration)
+- [Data Sources](#data-sources)
+- [Script Behavior](#script-behavior)
+- [GitHub Actions](#github-actions-setup)
+- [Local Development](#local-development)
+
+---
 
 ## Cloudflare vs NextDNS
 
-Both providers have free plans, but there are some limitations
+Both providers offer free plans with some limitations:
 
-### Cloudflare limitations
-+ 100 000 DNS requests per day
-+ Ipv4 DNS requests are restricted by the only one IP. But you are free to use other methods: DoH, DoT, Ipv6
-### NextDNS limitations
-+ 300 000 DNS requests per month (still more than enough for personal use)
-+ Slow API speed is restricted by 60 requests per minute. Takes significantly more time for script to save settings
+### Cloudflare Limitations
+- 100,000 DNS requests per day
+- IPv4 DNS requests restricted to one IP (DoH, DoT, IPv6 are unlimited)
 
-### Cloudflare credentials setup
-1) After signing up into a **Cloudflare**, navigate to _Zero Trust_ tab and create an account.
-- Free Plan has decent limits, so just choose it.
-- Skip providing payment method step by choosing _Cancel and exit_ (top right corner)
-- Go back to _Zero Trust_ tab
+### NextDNS Limitations
+- 300,000 DNS requests per month (sufficient for personal use)
+- API rate limited to 60 requests per minute (slower execution)
 
-2) Create a **Cloudflare API token**, from https://dash.cloudflare.com/profile/api-tokens
+---
 
-with 2 permissions:
+## Credentials Setup
 
-    Account.Zero Trust : Edit
-
-    Account.Account Firewall Access Rules : Edit
-
-Set API token to **environment variable** `AUTH_SECRET`
-
-3) Get your **Account ID** from : https://dash.cloudflare.com/?to=/:account/workers
-
-Set **Account ID** to **environment variable** `CLIENT_ID`
-
-### NextDNS credentials setup
-1) Generate **API KEY**, from https://my.nextdns.io/account and set as **environment variable** `AUTH_SECRET`
-
-2) Click on **NextDNS** logo. On the opened page, copy ID from Endpoints section.
-   Set it as **environment variable** `CLIENT_ID`
-
-
-## Setup profile
-Set **environment variable** `DNS` with DNS provider name (**Cloudflare** or **NextDNS**)
-
-## Setup data sources
-Each data source must be a link to a hosts file, e.g. https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hosts/hosts
-
-You can provide multiple sources split by coma:
-https://first.com/hosts,https://second.com/hosts
-
-### 1) Setup Redirects
-Set sources to **environment variable** `REDIRECT`
-
-Script will parse sources, filtering out redirects to `0.0.0.0` and `127.0.0.1`
-
-Thus, parsing lines:
-
-    0.0.0.0 domain.to.block
-    1.2.3.4 domain.to.redirect
-    127.0.0.1 another.to.block
-
-will keep only `1.2.3.4 domain.to.redirect` for the further redirect processing.
-
-
-+ Redirect priority follows sources order. If domain appears more than one time, the first only IP will be applied.
-
-
-### 2) Setup Blocklist
-Set sources to **environment variable** `BLOCK`
-
-Script will parse sources, keeping only redirects to `0.0.0.0` and `127.0.0.1`.
-
-Thus, parsing lines
-
-    0.0.0.0 domain.to.block
-    1.2.3.4 domain.to.redirect
-    127.0.0.1 another.to.block
-
-will keep only `domain.to.block` and `another.to.block` for the further block processing.
-
-+ You may want to provide the same source for both `BLOCK` and `REDIRECT` for **Cloudflare**.
-+ For **NextDNS**, the best option might be to set `REDIRECT` only, and then manually choose any blocklists at the _Privacy_ tab.
-
-## Script Behaviour
 ### Cloudflare
-Previously generated data will be removed. Script recognizes old data by marks:
 
+1. **Create Zero Trust Account:**
+   - Sign up at Cloudflare, navigate to _Zero Trust_ tab
+   - Choose Free Plan
+   - Skip payment method (_Cancel and exit_)
 
-+ Name prefix for List: **_Blocked websites by script_** and **_Override websites by script_**
-+ Name prefix for Rule: **_Rules set by script_**
-+ Different **_Session id_**. **_Session id_** is stored in a description field.
+2. **Create API Token:** https://dash.cloudflare.com/profile/api-tokens
+   
+   Required permissions:
+   - `Account.Zero Trust : Edit`
+   - `Account.Account Firewall Access Rules : Edit`
+   
+   Set token to environment variable `AUTH_SECRET`
 
-
-After removing old data, new lists and rules will be generated and applied.
-
-If you want to clear **Cloudflare** block/redirect settings, launch the script without providing sources in related **environment variables**. E.g. providing no value for **environment variable** `BLOCK` will cause removing old related data: lists and rules used to setup blocks.
+3. **Get Account ID:** https://dash.cloudflare.com/?to=/:account/workers
+   
+   Set to environment variable `CLIENT_ID`
 
 ### NextDNS
 
-For `REDIRECT`:
-+ Existing domain will be updated if redirect IP has changed
-+ If new domains are provided, they will be added
-+ The rest redirect settings are kept untouched
+1. **Generate API Key:** https://my.nextdns.io/account
+   
+   Set to environment variable `AUTH_SECRET`
 
-For `BLOCK`:
-+ If new domains are provided, they will be added
-+ The rest block settings are kept untouched
+2. **Get Configuration ID:**
+   - Click NextDNS logo
+   - Copy ID from _Endpoints_ section
+   
+   Set to environment variable `CLIENT_ID`
 
-Previously generated data is removed **ONLY** when both `BLOCK` and `REDIRECT` sources were not provided.
+---
 
-## GitHub Actions setup
+## Configuration
 
-#### Step-by-step video guide: [REDIRECT for NextDNS](https://www.youtube.com/watch?v=vbAXM_xAL5I)
+Create a `.env` file or set environment variables:
 
-#### Steps
+```bash
+# Required
+DNS=CLOUDFLARE                    # or NEXTDNS
+CLIENT_ID=your_account_id
+AUTH_SECRET=your_api_token
 
-1) Fork repository
-2) Go _Settings_ => _Environments_
-3) Create _New environment_ with name `DNS`
-4) Provide `AUTH_SECRET` and `CLIENT_ID` to **Environment secrets**
-5) Provide `DNS`,`REDIRECT` and `BLOCK` to **Environment variables**
+# Optional
+BLOCK=https://example.com/hosts   # Comma-separated URLs
+REDIRECT=https://example.com/hosts # Comma-separated URLs
+```
 
-+ The action will be launched every day at **01:30 UTC**. To set another time, change cron at `.github/workflows/github_action.yml`
-+ You can run the action manually via `Run workflow` button: switch to _Actions_ tab and choose workflow named **DNS Block&Redirect Configurer cron task**
+---
+
+## Data Sources
+
+Each source must be a URL to a hosts file format.
+
+Example: `https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hosts/hosts`
+
+Multiple sources: `https://first.com/hosts,https://second.com/hosts`
+
+### Block Rules (`BLOCK`)
+
+Parses hosts files, keeping only lines starting with `0.0.0.0` or `127.0.0.1`:
+
+```
+0.0.0.0 domain.to.block      → blocks domain.to.block
+127.0.0.1 another.to.block   → blocks another.to.block
+1.2.3.4 domain.to.redirect   → ignored
+```
+
+### Redirect Rules (`REDIRECT`)
+
+Parses hosts files, keeping only custom IP redirects:
+
+```
+1.2.3.4 domain.to.redirect   → redirects to 1.2.3.4
+0.0.0.0 domain.to.block      → ignored
+127.0.0.1 another.to.block   → ignored
+```
+
+**Note:** Redirect priority follows source order. First occurrence wins.
+
+### Provider Recommendations
+
+- **Cloudflare:** Can use same source for both `BLOCK` and `REDIRECT`
+- **NextDNS:** Use `REDIRECT` only, select blocklists manually in _Privacy_ tab
+
+---
+
+## Script Behavior
+
+### Cloudflare
+
+- **Always removes old data** before applying new rules
+- Identifies old data by:
+  - List prefix: `Blocked websites by script` / `Override websites by script`
+  - Rule prefix: `Rules set by script`
+  - Session ID in description field
+
+To clear all Cloudflare settings: run without `BLOCK` or `REDIRECT` values.
+
+### NextDNS
+
+**For `REDIRECT`:**
+- Updates existing domains if redirect IP changed
+- Adds new domains
+- Preserves other settings
+
+**For `BLOCK`:**
+- Adds new domains
+- Preserves existing settings
+
+**Full cleanup:** Only when both `BLOCK` and `REDIRECT` are empty.
+
+---
+
+## GitHub Actions Setup
+
+### Step-by-step Video: [REDIRECT for NextDNS](https://www.youtube.com/watch?v=vbAXM_xAL5I)
+
+### Steps
+
+1. **Fork repository**
+
+2. **Create Environment:**
+   - Go to _Settings_ → _Environments_
+   - Create new environment: `DNS`
+
+3. **Add Secrets:**
+   - `AUTH_SECRET` - API token/key
+   - `CLIENT_ID` - Account/Configuration ID
+
+4. **Add Variables:**
+   - `DNS` - Provider name
+   - `BLOCK` - Blocklist sources (optional)
+   - `REDIRECT` - Redirect sources (optional)
+
+### Schedule
+
+- Runs daily at **01:30 UTC** (04:30 MSK)
+- Change schedule in `.github/workflows/github_action.yml`
+- Manual trigger available via _Actions_ tab → _Run workflow_
+
+---
+
+## Local Development
+
+### Prerequisites
+
+- Node.js 22+
+- npm
+
+### Setup
+
+```bash
+npm install
+cp .env.example .env
+# Edit .env with your values
+```
+
+### Commands
+
+```bash
+npm run build       # Compile TypeScript
+npm start           # Run application
+npm run typecheck   # Type check only
+```
+
+---
+
+## Tech Stack
+
+- **Runtime:** Node.js 22+
+- **Language:** TypeScript 5.x
+- **HTTP Client:** node-fetch
+- **CI/CD:** GitHub Actions
+
+---
+
+## License
+
+ISC

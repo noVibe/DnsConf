@@ -1,0 +1,35 @@
+{
+  "name": "dns-block-and-redirect-configurer",
+  "version": "1.0.0",
+  "description": "DNS Block&Redirect Configurer for Cloudflare and NextDNS",
+  "type": "module",
+  "main": "dist/app.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "npm run build && npm run start",
+    "dev:watch": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "dns",
+    "cloudflare",
+    "nextdns",
+    "blocklist",
+    "redirect"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "@types/node-fetch": "^2.6.13",
+    "typescript": "^5.9.3"
+  }
+}
