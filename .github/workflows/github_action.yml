@@ -14,6 +14,7 @@ jobs:
       DNS: ${{ vars.DNS }}
       BLOCK: ${{ vars.BLOCK }}
       REDIRECT: ${{ vars.REDIRECT }}
+      EXCLUDE: ${{ vars.EXCLUDE }}
 
       CLIENT_ID: ${{ secrets.CLIENT_ID }}
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
