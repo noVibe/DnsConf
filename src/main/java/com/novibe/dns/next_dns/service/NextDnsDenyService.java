@@ -44,3 +44,20 @@ public class NextDnsDenyService {
     }
 
 }
+    public void removeExcluded(Set<String> excludedDomains) {
+        if (excludedDomains.isEmpty()) {
+            return;
+        }
+        Log.io("Fetching existing denylist from NextDNS");
+        List<DenyDto> existing = nextDnsDenyClient.fetchDenylist();
+        List<String> idsToDelete = existing.stream()
+                .map(DenyDto::getId)
+                .filter(excludedDomains::contains)
+                .toList();
+        if (idsToDelete.isEmpty()) {
+            return;
+        }
+        Log.io("Removing %s excluded domains from denylist".formatted(idsToDelete.size()));
+        NextDnsRateLimitedApiProcessor.callApi(idsToDelete, nextDnsDenyClient::deleteDenyById);
+    }
+
