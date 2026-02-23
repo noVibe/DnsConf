@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Objects.nonNull;
 
@@ -66,6 +67,22 @@ public class NextDnsRewriteService {
         List<String> ids = list.stream().map(RewriteDto::id).toList();
         Log.io("Removing rewrites from NextDNS");
         NextDnsRateLimitedApiProcessor.callApi(ids, nextDnsRewriteClient::deleteRewriteById);
+    }
+
+    public void removeExcluded(Set<String> excludedDomains) {
+        if (excludedDomains.isEmpty()) {
+            return;
+        }
+        List<RewriteDto> existingRewrites = getExistingRewrites();
+        List<String> idsToDelete = existingRewrites.stream()
+                .filter(rewrite -> excludedDomains.contains(rewrite.name()))
+                .map(RewriteDto::id)
+                .toList();
+        if (idsToDelete.isEmpty()) {
+            return;
+        }
+        Log.io("Removing %s excluded rewrites from NextDNS".formatted(idsToDelete.size()));
+        NextDnsRateLimitedApiProcessor.callApi(idsToDelete, nextDnsRewriteClient::deleteRewriteById);
     }
 
 }

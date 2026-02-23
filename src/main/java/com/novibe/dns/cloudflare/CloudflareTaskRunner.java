@@ -19,6 +19,7 @@ import java.util.Map;
 
 import static com.novibe.common.config.EnvironmentVariables.BLOCK;
 import static com.novibe.common.config.EnvironmentVariables.REDIRECT;
+import static com.novibe.common.config.EnvironmentVariables.EXCLUDE;
 
 
 @Service
@@ -38,8 +39,10 @@ public class CloudflareTaskRunner implements DnsTaskRunner {
         Script behaviour: previously generated data is always about to be removed.
         If you want to clear Cloudflare block/redirect settings, launch this script without providing sources in related environment variables.""");
 
-        List<String> blocks = blockListsLoader.fetchWebsites(EnvParser.parse(BLOCK));
-        List<BypassRoute> overrides = overrideListsLoader.fetchWebsites(EnvParser.parse(REDIRECT));
+        var excludedDomains = EnvParser.parseExcludedDomains(EXCLUDE);
+
+        List<String> blocks = blockListsLoader.fetchWebsites(EnvParser.parse(BLOCK), excludedDomains);
+        List<BypassRoute> overrides = overrideListsLoader.fetchWebsites(EnvParser.parse(REDIRECT), excludedDomains);
 
         Log.step("Remove old rules.");
         List<GatewayRuleDto> gatewayRuleDtos = ruleService.obtainExistingRules();

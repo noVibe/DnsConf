@@ -79,6 +79,14 @@ https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hos
 Можно указать несколько источников, разделив их запятой:
 `https://first.com/hosts,https://second.com/hosts`
 
+### 3) Настройка исключений
+Укажите домены в **переменной окружения** `EXCLUDE`, чтобы пропускать их при добавлении правил из `BLOCK` и `REDIRECT`.
+
+Можно указать несколько доменов через запятую:
+`instagram.com,example.org`
+
+Исключения работают и для поддоменов. Если исключить `instagram.com`, то строки `instagram.com`, `b.i.instagram.com`, `help.instagram.com` будут проигнорированы.
+
 ---
 
 ### 1) Настройка перенаправлений (редиректы)
@@ -165,7 +173,7 @@ https://www.youtube.com/watch?v=vbAXM_xAL5I
 2) Перейдите в _Settings_ → _Environments_
 3) Создайте _New environment_ с именем `DNS`
 4) Добавьте `AUTH_SECRET` и `CLIENT_ID` в **Environment secrets**
-5) Добавьте `DNS`, `REDIRECT` и `BLOCK` в **Environment variables**
+5) Добавьте `DNS`, `REDIRECT`, `BLOCK` и (опционально) `EXCLUDE` в **Environment variables**
 
 + **Action** запускается ежедневно в **01:30 UTC** (04:30 по МСК).  
   Чтобы изменить время, отредактируйте cron в `.github/workflows/github_action.yml`

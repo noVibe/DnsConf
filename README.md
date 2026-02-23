@@ -64,6 +64,14 @@ Each data source must be a link to a hosts file, e.g. https://raw.githubusercont
 You can provide multiple sources split by coma:
 https://first.com/hosts,https://second.com/hosts
 
+### 3) Setup exclusions
+Set domains to **environment variable** `EXCLUDE` to skip adding them from both `BLOCK` and `REDIRECT` sources.
+
+You can provide multiple domains split by comma:
+`instagram.com,example.org`
+
+Exclusions also work for subdomains. If `instagram.com` is excluded, then entries like `instagram.com`, `b.i.instagram.com`, `help.instagram.com` will be ignored.
+
 ### 1) Setup Redirects
 Set sources to **environment variable** `REDIRECT`
 
@@ -134,7 +142,7 @@ Previously generated data is removed **ONLY** when both `BLOCK` and `REDIRECT` s
 2) Go _Settings_ => _Environments_
 3) Create _New environment_ with name `DNS`
 4) Provide `AUTH_SECRET` and `CLIENT_ID` to **Environment secrets**
-5) Provide `DNS`,`REDIRECT` and `BLOCK` to **Environment variables**
+5) Provide `DNS`,`REDIRECT`, `BLOCK` and optional `EXCLUDE` to **Environment variables**
 
 + The action will be launched every day at **01:30 UTC**. To set another time, change cron at `.github/workflows/github_action.yml`
 + You can run the action manually via `Run workflow` button: switch to _Actions_ tab and choose workflow named **DNS Block&Redirect Configurer cron task**

@@ -22,6 +22,11 @@ public class HostsBlockListsLoader extends ListLoader<String> {
 
     @Override
     protected String toObject(String line) {
+        return extractDomain(line);
+    }
+
+    @Override
+    protected String extractDomain(String line) {
         return removeWWW(removeIp(line));
     }
 

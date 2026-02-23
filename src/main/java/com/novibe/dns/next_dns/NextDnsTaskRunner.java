@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static com.novibe.common.config.EnvironmentVariables.BLOCK;
 import static com.novibe.common.config.EnvironmentVariables.REDIRECT;
+import static com.novibe.common.config.EnvironmentVariables.EXCLUDE;
 
 @Service
 @RequiredArgsConstructor
@@ -37,9 +38,14 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
         NextDNS API rate limiter reset config: 60 seconds after the last request""");
 
         List<String> blockSources = EnvParser.parse(BLOCK);
+        var excludedDomains = EnvParser.parseExcludedDomains(EXCLUDE);
+
+        nextDnsDenyService.removeExcluded(excludedDomains);
+        nextDnsRewriteService.removeExcluded(excludedDomains);
+        
         if (!blockSources.isEmpty()) {
             Log.step("Obtain block lists from %s sources".formatted(blockSources.size()));
-            List<String> blocks = blockListsLoader.fetchWebsites(blockSources);
+            List<String> blocks = blockListsLoader.fetchWebsites(blockSources, excludedDomains);
             Log.step("Prepare denylist");
             List<String> filteredBlocklist = nextDnsDenyService.dropExistingDenys(blocks);
             Log.common("Prepared %s domains to block".formatted(filteredBlocklist.size()));
@@ -52,8 +58,8 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
         List<String> rewriteSources = EnvParser.parse(REDIRECT);
         if (!rewriteSources.isEmpty()) {
 
-            Log.step("Obtain rewrite lists from %s sources".formatted(blockSources.size()));
-            List<HostsOverrideListsLoader.BypassRoute> overrides = overrideListsLoader.fetchWebsites(rewriteSources);
+            Log.step("Obtain rewrite lists from %s sources".formatted(rewriteSources.size()));
+            List<HostsOverrideListsLoader.BypassRoute> overrides = overrideListsLoader.fetchWebsites(rewriteSources, excludedDomains);
 
             Log.step("Prepare rewrites");
             Map<String, CreateRewriteDto> requests = nextDnsRewriteService.buildNewRewrites(overrides);

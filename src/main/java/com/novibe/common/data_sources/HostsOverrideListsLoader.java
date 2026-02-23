@@ -23,9 +23,15 @@ public class HostsOverrideListsLoader extends ListLoader<HostsOverrideListsLoade
     @Override
     protected BypassRoute toObject(String line) {
         int delimiter = line.indexOf(" ");
-        String ip = line.substring(0, delimiter++);
-        String website = removeWWW(line.substring(delimiter).strip());
+        String ip = line.substring(0, delimiter);
+        String website = extractDomain(line);
         return new BypassRoute(ip, website);
+    }
+
+    @Override
+    protected String extractDomain(String line) {
+        int delimiter = line.indexOf(" ");
+        return removeWWW(line.substring(delimiter).strip());
     }
 
 }

@@ -13,6 +13,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -29,9 +30,17 @@ public abstract class ListLoader<T> {
 
     protected abstract Predicate<String> filterRelatedLines();
 
+    protected abstract String extractDomain(String line);
+
     @SneakyThrows
     @SuppressWarnings("preview")
     public List<T> fetchWebsites(List<String> urls) {
+        return fetchWebsites(urls, Set.of());
+    }
+
+    @SneakyThrows
+    @SuppressWarnings("preview")
+    public List<T> fetchWebsites(List<String> urls, Set<String> excludedDomains) {
         @Cleanup var scope = StructuredTaskScope.open();
         List<StructuredTaskScope.Subtask<String>> requests = new ArrayList<>();
         urls.stream()
@@ -47,6 +56,7 @@ public abstract class ListLoader<T> {
                 .filter(line -> !line.startsWith("#"))
                 .map(String::toLowerCase)
                 .filter(filterRelatedLines())
+                .filter(line -> !isExcluded(line, excludedDomains))
                 .distinct()
                 .map(this::toObject)
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -59,6 +69,13 @@ public abstract class ListLoader<T> {
                 .GET()
                 .build();
         return client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).body();
+    }
+
+    private boolean isExcluded(String line, Set<String> excludedDomains) {
+        if (excludedDomains.isEmpty()) return false;
+        String domain = extractDomain(line);
+        return excludedDomains.stream()
+                .anyMatch(excludedDomain -> domain.equals(excludedDomain) || domain.endsWith("." + excludedDomain));
     }
 
     protected String removeWWW(String domain) {
