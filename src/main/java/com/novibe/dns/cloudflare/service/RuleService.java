@@ -9,12 +9,10 @@ import com.novibe.dns.cloudflare.http.dto.response.rule.SingleRuleApiResponse;
 import lombok.Cleanup;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.Synchronized;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.stream.Collectors;
@@ -28,10 +26,11 @@ public class RuleService {
     private final CloudflareRuleClient cloudflareRuleClient;
     private final String sessionId;
 
-    public void createNewBlockingRule(List<GatewayListDto> lists) {
+    public void createNewBlockingRule(List<GatewayListDto> lists, RulePrecedenceCounter rulePrecedenceCounter) {
         String traffic = makeTrafficExpression(lists);
         CreateRuleRequest rule = CreateRuleRequest.builder()
-                .name(RULES_LIST_NAME_PREFIX)
+                .name(RULES_LIST_NAME_PREFIX + ": block")
+                .precedence(rulePrecedenceCounter.next())
                 .action("block")
                 .description(sessionId)
                 .filters(List.of("dns"))
@@ -47,13 +46,12 @@ public class RuleService {
 
     @SneakyThrows
     @SuppressWarnings("preview")
-    public void createNewOverrideRulesCollisionAware(Map<String, List<GatewayListDto>> lists, List<GatewayRuleDto> existingRules) {
-        PrecedenceCounter precedenceCounter = providePrecedenceCounter(existingRules);
+    public void createNewOverrideRules(Map<String, List<GatewayListDto>> lists, RulePrecedenceCounter rulePrecedenceCounter) {
         @Cleanup var scope = StructuredTaskScope.open();
         for (Map.Entry<String, List<GatewayListDto>> entry : lists.entrySet()) {
             String overrideIp = entry.getKey();
             List<GatewayListDto> list = entry.getValue();
-            scope.fork(() -> createNewOverrideRule(list, overrideIp, precedenceCounter.next()));
+            scope.fork(() -> createNewOverrideRule(list, overrideIp, rulePrecedenceCounter.next()));
         }
         scope.join();
     }
@@ -102,13 +100,6 @@ public class RuleService {
         return rules;
     }
 
-    private PrecedenceCounter providePrecedenceCounter(List<GatewayRuleDto> existingRules) {
-        Set<Integer> existingValues = existingRules.stream()
-                .map(GatewayRuleDto::getPrecedence)
-                .collect(Collectors.toSet());
-        return new PrecedenceCounter(existingValues);
-    }
-
     private String makeTrafficExpression(List<GatewayListDto> lists) {
         List<String> listIds = lists.stream()
                 .map(GatewayListDto::getId)
@@ -118,21 +109,6 @@ public class RuleService {
         return listIds.stream()
                 .map("any(dns.domains[*] in $%s)"::formatted)
                 .collect(Collectors.joining(" or "));
-    }
-
-    @RequiredArgsConstructor
-    private static class PrecedenceCounter {
-
-        private final Set<Integer> skipSet;
-        private int number = 1;
-
-        @Synchronized
-        private int next() {
-            while (skipSet.contains(number)) {
-                number++;
-            }
-            return number++;
-        }
     }
 
 }
