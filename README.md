@@ -97,6 +97,23 @@ will keep only `domain.to.block` and `another.to.block` for the further block pr
 + You may want to provide the same source for both `BLOCK` and `REDIRECT` for **Cloudflare**.
 + For **NextDNS**, the best option might be to set `REDIRECT` only, and then manually choose any blocklists at the _Privacy_ tab.
 
+### 3) Setup NextDNS rewrite exclusions (optional)
+Set JSON config to **environment variable** `NEXTDNS_REWRITE_EXCLUSIONS`
+
+```json
+{"patterns":["*.instagram.com","*.facebook.com"]}
+```
+
+- `patterns` filters matching domains out of new NextDNS rewrite creation.
+- This config is evaluated during the NextDNS `REDIRECT` rewrite flow.
+- `cleanupExisting` controls only deletion of already existing matching rewrites in NextDNS.
+- If `cleanupExisting` is omitted, it defaults to `false`.
+- If `cleanupExisting=false`, new matching rewrites are still filtered out, but existing matching rewrites are left untouched.
+- If no `REDIRECT` sources are provided, exclusion filtering and exclusion cleanup do not run.
+- Matching is case-insensitive and strips leading `www.` before comparison.
+- For convenience, a leading wildcard like `*.instagram.com` matches both `instagram.com` and its subdomains.
+- If the JSON is invalid, the run fails with a clear configuration error.
+
 ## Script Behaviour
 ### Cloudflare
 Previously generated data will be removed. Script recognizes old data by marks:
@@ -117,12 +134,68 @@ For `REDIRECT`:
 + Existing domain will be updated if redirect IP has changed
 + If new domains are provided, they will be added
 + The rest redirect settings are kept untouched
++ Domains matching `NEXTDNS_REWRITE_EXCLUSIONS.patterns` are skipped from new rewrite creation
 
 For `BLOCK`:
 + If new domains are provided, they will be added
 + The rest block settings are kept untouched
 
+For `NEXTDNS_REWRITE_EXCLUSIONS`:
++ If `cleanupExisting=true`, existing matching rewrites are removed through the existing rate-limited API path
++ If `cleanupExisting=false` or the field is omitted, existing matching rewrites stay as-is
+
 Previously generated data is removed **ONLY** when both `BLOCK` and `REDIRECT` sources were not provided.
+
+## Docker-based validation
+
+You do not need Java or Maven on the host machine.
+
+Run local validation only through Docker:
+
+```bash
+docker compose run --rm validate
+```
+
+This runs `mvn -B clean test package` inside the container and verifies the minimal exclusion-filtering tests plus the packaged build.
+
+Use `.env.example` as the placeholder for values. If you want a local non-committed copy, duplicate it to `.env.local`.
+
+## Local apply through Docker
+
+If you want to apply real changes to NextDNS from your own machine, you can run the application through Docker as well.
+
+1. Create a local non-committed env file:
+
+```bash
+cp .env.example .env.local
+```
+
+2. Fill `.env.local` with your real values.
+3. I recommend the first run with:
+
+```json
+{"patterns":["*.instagram.com","*.facebook.com"],"cleanupExisting":false}
+```
+
+4. Run the real apply flow:
+
+```bash
+docker compose --profile apply run --rm apply
+```
+
+This command builds the jar inside the container and then runs it with your `.env.local` values, so it can modify your live NextDNS profile.
+
+What to watch in the logs:
+- `Loaded ... NextDNS rewrite exclusion patterns. Existing cleanup: ...`
+- `Skipping ... rewrite candidates due to exclusion patterns`
+- `Removing ... excluded rewrites from NextDNS` when `cleanupExisting=true`
+- `Saving ... new rewrites to NextDNS...`
+
+Important:
+- There is no dry-run mode here.
+- `docker compose run --rm validate` is the safe check.
+- `docker compose --profile apply run --rm apply` is the real mutation command.
+- Exclusion filtering and exclusion cleanup are part of the `REDIRECT` rewrite flow, so they only run when `REDIRECT` sources are configured.
 
 ## GitHub Actions setup
 
@@ -134,7 +207,7 @@ Previously generated data is removed **ONLY** when both `BLOCK` and `REDIRECT` s
 2) Go _Settings_ => _Environments_
 3) Create _New environment_ with name `DNS`
 4) Provide `AUTH_SECRET` and `CLIENT_ID` to **Environment secrets**
-5) Provide `DNS`,`REDIRECT` and `BLOCK` to **Environment variables**
+5) Provide `DNS`, `REDIRECT`, `BLOCK` and optional `NEXTDNS_REWRITE_EXCLUSIONS` to **Environment variables**
 
 + The action will be launched every day at **01:30 UTC**. To set another time, change cron at `.github/workflows/github_action.yml`
 + You can run the action manually via `Run workflow` button: switch to _Actions_ tab and choose workflow named **DNS Block&Redirect Configurer cron task**

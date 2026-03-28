@@ -1,0 +1,25 @@
+services:
+  validate:
+    image: maven:3.9-eclipse-temurin-25
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+    command: mvn -B clean test package
+
+  apply:
+    profiles:
+      - apply
+    image: maven:3.9-eclipse-temurin-25
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+    env_file:
+      - .env.local
+    command: >-
+      sh -c "mvn -B -DskipTests clean package &&
+      java --enable-preview -jar target/dns-block-and-redirect-configurer-1.0-SNAPSHOT.jar"
+
+volumes:
+  maven-cache:

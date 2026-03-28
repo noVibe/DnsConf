@@ -122,6 +122,23 @@ https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hos
 
 + Для **NextDNS** оптимальным вариантом будет указать только `REDIRECT`, а списки для блокировки выбрать вручную во вкладке _Privacy_.
 
+### 3) Исключения для NextDNS rewrites (необязательно)
+Укажите JSON в **переменной окружения** `NEXTDNS_REWRITE_EXCLUSIONS`
+
+```json
+{"patterns":["*.instagram.com","*.facebook.com"]}
+```
+
++ `patterns` исключает совпавшие домены из создания новых NextDNS rewrites.
++ Эта конфигурация применяется во время обработки NextDNS `REDIRECT`.
++ `cleanupExisting` управляет только удалением уже существующих совпавших rewrites в NextDNS.
++ Если `cleanupExisting` не указан, по умолчанию используется `false`.
++ Если `cleanupExisting=false`, новые совпавшие rewrites всё равно не создаются, но существующие совпавшие записи не удаляются.
++ Если источники `REDIRECT` не заданы, фильтрация и очистка по исключениям не выполняются.
++ Сопоставление нечувствительно к регистру и перед сравнением убирает префикс `www.`.
++ Для удобства шаблон вида `*.instagram.com` совпадает и с `instagram.com`, и с его поддоменами.
++ Если JSON некорректный, запуск завершается с понятной ошибкой конфигурации.
+
 ---
 
 ## Поведение скрипта
@@ -146,12 +163,70 @@ https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hos
 + Существующий домен будет обновлён, если IP редиректа изменился
 + Новые домены будут добавлены к существующим
 + Остальные настройки редиректов останутся без изменений
++ Домены, совпавшие с `NEXTDNS_REWRITE_EXCLUSIONS.patterns`, исключаются из создания новых rewrites
 
 Для `BLOCK`:
 + Новые домены будут добавлены к существующим
 + Остальные настройки блокировки останутся без изменений
 
+Для `NEXTDNS_REWRITE_EXCLUSIONS`:
++ Если `cleanupExisting=true`, существующие совпавшие rewrites удаляются через уже существующий путь API с повторными попытками и ожиданием при rate limit
++ Если `cleanupExisting=false` или это поле не указано, существующие совпавшие rewrites остаются без изменений
+
 Ранее сгенерированные данные удаляются, если не заданы источники **ДЛЯ ОБЕИХ НАСТРОЕК** `BLOCK` и `REDIRECT`.
+
+---
+
+## Проверка через Docker
+
+Java и Maven на локальной машине не нужны.
+
+Локальную проверку запускайте только через Docker:
+
+```bash
+docker compose run --rm validate
+```
+
+Команда запускает `mvn -B clean test package` внутри контейнера и проверяет минимальные тесты фильтрации, а также успешную сборку пакета.
+
+В качестве шаблона переменных используйте `.env.example`. Если нужен локальный некоммитируемый файл, скопируйте его в `.env.local`.
+
+## Локальный запуск через Docker с реальными изменениями в NextDNS
+
+Если вы хотите запускать реальное применение изменений к NextDNS со своей машины, это тоже можно делать через Docker.
+
+1. Создайте локальный некоммитируемый env-файл:
+
+```bash
+cp .env.example .env.local
+```
+
+2. Заполните `.env.local` своими боевыми значениями.
+3. Для первого запуска рекомендую начать с:
+
+```json
+{"patterns":["*.instagram.com","*.facebook.com"],"cleanupExisting":false}
+```
+
+4. Запустите реальное применение:
+
+```bash
+docker compose --profile apply run --rm apply
+```
+
+Эта команда собирает jar внутри контейнера и затем запускает приложение с переменными из `.env.local`, поэтому оно реально меняет ваш live-профиль NextDNS.
+
+На что смотреть в логах:
++ `Loaded ... NextDNS rewrite exclusion patterns. Existing cleanup: ...`
++ `Skipping ... rewrite candidates due to exclusion patterns`
++ `Removing ... excluded rewrites from NextDNS`, если `cleanupExisting=true`
++ `Saving ... new rewrites to NextDNS...`
+
+Важно:
++ Dry-run режима здесь нет.
++ `docker compose run --rm validate` — безопасная проверка.
++ `docker compose --profile apply run --rm apply` — реальная команда, которая меняет состояние NextDNS.
++ Фильтрация и очистка по исключениям являются частью `REDIRECT`-ветки rewrites, поэтому они выполняются только если заданы источники `REDIRECT`.
 
 ---
 
@@ -165,7 +240,7 @@ https://www.youtube.com/watch?v=vbAXM_xAL5I
 2) Перейдите в _Settings_ → _Environments_
 3) Создайте _New environment_ с именем `DNS`
 4) Добавьте `AUTH_SECRET` и `CLIENT_ID` в **Environment secrets**
-5) Добавьте `DNS`, `REDIRECT` и `BLOCK` в **Environment variables**
+5) Добавьте `DNS`, `REDIRECT`, `BLOCK` и при необходимости `NEXTDNS_REWRITE_EXCLUSIONS` в **Environment variables**
 
 + **Action** запускается ежедневно в **01:30 UTC** (04:30 по МСК).  
   Чтобы изменить время, отредактируйте cron в `.github/workflows/github_action.yml`

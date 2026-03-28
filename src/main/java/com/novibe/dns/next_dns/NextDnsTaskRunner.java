@@ -5,16 +5,21 @@ import com.novibe.common.data_sources.HostsBlockListsLoader;
 import com.novibe.common.data_sources.HostsOverrideListsLoader;
 import com.novibe.common.util.EnvParser;
 import com.novibe.common.util.Log;
+import com.novibe.dns.next_dns.config.NextDnsRewriteExclusionConfig;
+import com.novibe.dns.next_dns.config.NextDnsRewriteExclusionParser;
 import com.novibe.dns.next_dns.http.dto.request.CreateRewriteDto;
 import com.novibe.dns.next_dns.service.NextDnsDenyService;
 import com.novibe.dns.next_dns.service.NextDnsRewriteService;
+import com.novibe.dns.next_dns.service.WildcardDomainMatcher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.novibe.common.config.EnvironmentVariables.BLOCK;
+import static com.novibe.common.config.EnvironmentVariables.NEXTDNS_REWRITE_EXCLUSIONS;
 import static com.novibe.common.config.EnvironmentVariables.REDIRECT;
 
 @Service
@@ -23,6 +28,7 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
 
     private final HostsBlockListsLoader blockListsLoader;
     private final HostsOverrideListsLoader overrideListsLoader;
+    private final NextDnsRewriteExclusionParser nextDnsRewriteExclusionParser;
     private final NextDnsRewriteService nextDnsRewriteService;
     private final NextDnsDenyService nextDnsDenyService;
 
@@ -54,10 +60,23 @@ public class NextDnsTaskRunner implements DnsTaskRunner {
 
             Log.step("Obtain rewrite lists from %s sources".formatted(rewriteSources.size()));
             List<HostsOverrideListsLoader.BypassRoute> overrides = overrideListsLoader.fetchWebsites(rewriteSources);
+            Optional<NextDnsRewriteExclusionConfig> exclusionConfig = nextDnsRewriteExclusionParser.parse(NEXTDNS_REWRITE_EXCLUSIONS);
+            Optional<WildcardDomainMatcher> exclusionMatcher = exclusionConfig
+                    .map(NextDnsRewriteExclusionConfig::patterns)
+                    .map(WildcardDomainMatcher::new);
+
+            exclusionConfig.ifPresent(config -> Log.common(
+                    "Loaded %s NextDNS rewrite exclusion patterns. Existing cleanup: %s"
+                            .formatted(config.patterns().size(), config.cleanupExisting())
+            ));
 
             Log.step("Prepare rewrites");
-            Map<String, CreateRewriteDto> requests = nextDnsRewriteService.buildNewRewrites(overrides);
-            List<CreateRewriteDto> createRewriteDtos = nextDnsRewriteService.cleanupOutdated(requests);
+            Map<String, CreateRewriteDto> requests = nextDnsRewriteService.buildNewRewrites(overrides, exclusionMatcher);
+            List<CreateRewriteDto> createRewriteDtos = nextDnsRewriteService.cleanupOutdated(
+                    requests,
+                    exclusionMatcher,
+                    exclusionConfig.map(NextDnsRewriteExclusionConfig::cleanupExisting).orElse(false)
+            );
 
             Log.step("Save rewrites");
             nextDnsRewriteService.saveRewrites(createRewriteDtos);
