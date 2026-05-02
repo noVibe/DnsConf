@@ -31,6 +31,7 @@ public class NextDnsRewriteService {
     }
 
     public List<CreateRewriteDto> cleanupOutdatedAndExcluded(Map<String, CreateRewriteDto> newRewriteRequests) {
+        newRewriteRequests.keySet().removeIf(excludeRedirectCheckService::shouldExclude);
         List<RewriteDto> existingRewrites = getExistingRewrites();
 
         List<String> outdatedIds = new ArrayList<>();
