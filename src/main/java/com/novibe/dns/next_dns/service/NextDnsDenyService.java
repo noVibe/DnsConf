@@ -2,7 +2,7 @@ package com.novibe.dns.next_dns.service;
 
 import com.novibe.common.util.Log;
 import com.novibe.dns.next_dns.http.NextDnsDenyClient;
-import com.novibe.dns.next_dns.http.NextDnsRateLimitedApiProcessor;
+import com.novibe.dns.next_dns.http.NextDnsApiProcessor;
 import com.novibe.dns.next_dns.http.dto.request.CreateDenyDto;
 import com.novibe.dns.next_dns.http.dto.response.deny.DenyDto;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class NextDnsDenyService {
     public void saveDenyList(List<String> newDenylist) {
         List<CreateDenyDto> createRequests = newDenylist.stream().map(CreateDenyDto::new).toList();
         Log.io("Saving new denylist to NextDNS...");
-        NextDnsRateLimitedApiProcessor.callApi(createRequests, nextDnsDenyClient::saveDeny);
+        NextDnsApiProcessor.callApi(createRequests, nextDnsDenyClient::saveDeny);
     }
 
     public void removeAll() {
@@ -40,7 +40,7 @@ public class NextDnsDenyService {
         List<DenyDto> existing = nextDnsDenyClient.fetchDenylist();
         List<String> ids = existing.stream().map(DenyDto::getId).toList();
         Log.io("Removing denylist from NextDNS");
-        NextDnsRateLimitedApiProcessor.callApi(ids, nextDnsDenyClient::deleteDenyById);
+        NextDnsApiProcessor.callApi(ids, nextDnsDenyClient::deleteDenyById);
     }
 
 }

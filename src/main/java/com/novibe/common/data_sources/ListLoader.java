@@ -4,6 +4,7 @@ import com.novibe.common.base_structures.HostsLine;
 import com.novibe.common.exception.UserInputException;
 import com.novibe.common.util.DataParser;
 import com.novibe.common.util.Log;
+import com.novibe.common.util.RetryUtils;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -13,6 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -23,6 +25,10 @@ import java.util.stream.Collectors;
 @Setter(onMethod_ = @Autowired)
 public abstract class ListLoader<T> {
 
+    private static final int RETRY_ATTEMPTS = 3;
+
+    private static final Duration RETRY_DELAY = Duration.ofSeconds(5);
+
     private HttpClient client;
 
     protected abstract T toObject(HostsLine hostsLine);
@@ -30,6 +36,14 @@ public abstract class ListLoader<T> {
     protected abstract String listType();
 
     protected abstract Predicate<HostsLine> filterRelatedLines();
+
+    protected int retryAttempts() {
+        return RETRY_ATTEMPTS;
+    }
+
+    protected Duration retryDelay() {
+        return RETRY_DELAY;
+    }
 
     @SuppressWarnings("preview")
     public List<T> fetchWebsites(List<String> urls) {
@@ -64,12 +78,18 @@ public abstract class ListLoader<T> {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .GET()
                 .build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        if (response.statusCode() > 299) {
-            throw UserInputException.noStackTrace("Failed to load %s list, response code %s from url: %s"
-                    .formatted(listType(), response.statusCode(), url));
+        for (int attempt = 1; ; attempt++) {
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            int responseCode = response.statusCode();
+            if (responseCode < 300) {
+                return response.body();
+            }
+            if (attempt >= retryAttempts() || !RetryUtils.isTemporaryError(responseCode)) {
+                throw UserInputException.noStackTrace("Failed to load %s list, response code %s from url: %s"
+                        .formatted(listType(), responseCode, url));
+            }
+            RetryUtils.waitBeforeRetry(retryDelay(), responseCode, attempt, retryAttempts());
         }
-        return response.body();
     }
 
 }

@@ -7,16 +7,15 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ExcludeRedirectCheckServiceTest {
 
     private static ExcludeRedirectCheckService serviceFor(String... domains) {
-        return new ExcludeRedirectCheckService(new ExcludeRedirectSettingsLoader() {
-            @Override
-            public List<String> loadIgnoredDomains() {
-                return List.of(domains);
-            }
-        });
+        ExcludeRedirectSettingsLoader loader = mock(ExcludeRedirectSettingsLoader.class);
+        when(loader.loadIgnoredDomains()).thenReturn(List.of(domains));
+        return new ExcludeRedirectCheckService(loader);
     }
 
     @Test

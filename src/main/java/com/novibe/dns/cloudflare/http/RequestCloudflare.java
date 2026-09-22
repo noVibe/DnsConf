@@ -6,9 +6,25 @@ import com.novibe.common.exception.DnsHttpError;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+
 @Service
 @RequiredArgsConstructor
 public class RequestCloudflare extends HttpRequestSender {
+
+    private static final int RETRY_ATTEMPTS = 3;
+
+    private static final Duration RETRY_DELAY = Duration.ofSeconds(5);
+
+    @Override
+    protected int retryAttempts() {
+        return RETRY_ATTEMPTS;
+    }
+
+    @Override
+    protected Duration retryDelay() {
+        return RETRY_DELAY;
+    }
 
     @Override
     protected String apiUrl() {

@@ -3,7 +3,7 @@ package com.novibe.dns.next_dns.service;
 import com.novibe.common.base_structures.BypassRoute;
 import com.novibe.common.service.ExcludeRedirectCheckService;
 import com.novibe.common.util.Log;
-import com.novibe.dns.next_dns.http.NextDnsRateLimitedApiProcessor;
+import com.novibe.dns.next_dns.http.NextDnsApiProcessor;
 import com.novibe.dns.next_dns.http.NextDnsRewriteClient;
 import com.novibe.dns.next_dns.http.dto.request.CreateRewriteDto;
 import com.novibe.dns.next_dns.http.dto.response.rewrite.RewriteDto;
@@ -55,11 +55,11 @@ public class NextDnsRewriteService {
 
         if (!outdatedIds.isEmpty()) {
             Log.io("Removing %s outdated rewrites from NextDNS".formatted(outdatedIds.size()));
-            NextDnsRateLimitedApiProcessor.callApi(outdatedIds, nextDnsRewriteClient::deleteRewriteById);
+            NextDnsApiProcessor.callApi(outdatedIds, nextDnsRewriteClient::deleteRewriteById);
         }
         if (!ignoredIds.isEmpty()) {
             Log.io("Removing %s excluded rewrites from NextDNS".formatted(ignoredIds.size()));
-            NextDnsRateLimitedApiProcessor.callApi(ignoredIds, nextDnsRewriteClient::deleteRewriteById);
+            NextDnsApiProcessor.callApi(ignoredIds, nextDnsRewriteClient::deleteRewriteById);
         }
         return List.copyOf(newRewriteRequests.values());
     }
@@ -71,7 +71,7 @@ public class NextDnsRewriteService {
 
     public void saveRewrites(List<CreateRewriteDto> createRewriteDtos) {
         Log.io("Saving %s new rewrites to NextDNS...".formatted(createRewriteDtos.size()));
-        NextDnsRateLimitedApiProcessor.callApi(createRewriteDtos, nextDnsRewriteClient::saveRewrite);
+        NextDnsApiProcessor.callApi(createRewriteDtos, nextDnsRewriteClient::saveRewrite);
     }
 
     public void removeAll() {
@@ -79,7 +79,7 @@ public class NextDnsRewriteService {
         List<RewriteDto> list = nextDnsRewriteClient.fetchRewrites();
         List<String> ids = list.stream().map(RewriteDto::id).toList();
         Log.io("Removing rewrites from NextDNS");
-        NextDnsRateLimitedApiProcessor.callApi(ids, nextDnsRewriteClient::deleteRewriteById);
+        NextDnsApiProcessor.callApi(ids, nextDnsRewriteClient::deleteRewriteById);
     }
 
 }

@@ -5,9 +5,26 @@ import com.novibe.common.exception.CredentialsException;
 import com.novibe.common.exception.DnsHttpError;
 import com.novibe.common.util.Log;
 
+import java.time.Duration;
+
 public abstract class AbstractNextDnsHttpClient extends HttpRequestSender {
 
+    private static final int RETRY_ATTEMPTS = 10;
+
+    // NextDNS api rate limiter resets 60 seconds after the last request
+    private static final Duration RETRY_DELAY = Duration.ofSeconds(60);
+
     protected abstract String path();
+
+    @Override
+    protected int retryAttempts() {
+        return RETRY_ATTEMPTS;
+    }
+
+    @Override
+    protected Duration retryDelay() {
+        return RETRY_DELAY;
+    }
 
     @Override
     protected String apiUrl() {
