@@ -38,7 +38,7 @@ class ListLoaderTest {
         baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
         loader = spy(new HostsOverrideListsLoader());
         doReturn(Duration.ZERO).when(loader).retryDelay();
-        loader.setClient(HttpClient.newHttpClient());
+        loader.setHttpClient(HttpClient.newHttpClient());
     }
 
     @AfterEach

@@ -18,12 +18,19 @@ public class NextDnsDenyClient extends AbstractNextDnsHttpClient {
                 .getData();
     }
 
-    public SingleDenyResponse saveDeny(CreateDenyDto rewriteDto) {
-        return post(path(), rewriteDto, SingleDenyResponse.class);
+    public void saveDenys(List<CreateDenyDto> denyDtos) {
+        callApiForEach(denyDtos, this::saveDeny);
     }
 
+    public void deleteDenysByIds(List<String> ids) {
+        callApiForEach(ids, this::deleteDenyById);
+    }
 
-    public SingleDenyResponse deleteDenyById(String id) {
+    private SingleDenyResponse saveDeny(CreateDenyDto denyDto) {
+        return post(path(), denyDto, SingleDenyResponse.class);
+    }
+
+    private SingleDenyResponse deleteDenyById(String id) {
         return delete(path() + "/" + id, SingleDenyResponse.class);
     }
 

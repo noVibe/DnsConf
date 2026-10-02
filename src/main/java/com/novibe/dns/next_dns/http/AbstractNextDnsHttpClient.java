@@ -1,13 +1,18 @@
 package com.novibe.dns.next_dns.http;
 
-import com.novibe.common.HttpRequestSender;
+import com.novibe.common.ApiRequestSender;
 import com.novibe.common.exception.CredentialsException;
 import com.novibe.common.exception.DnsHttpError;
 import com.novibe.common.util.Log;
+import com.novibe.dns.next_dns.http.dto.response.NextDnsResponse;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.function.Function;
 
-public abstract class AbstractNextDnsHttpClient extends HttpRequestSender {
+import static java.util.Optional.ofNullable;
+
+public abstract class AbstractNextDnsHttpClient extends ApiRequestSender {
 
     private static final int RETRY_ATTEMPTS = 10;
 
@@ -58,4 +63,20 @@ public abstract class AbstractNextDnsHttpClient extends HttpRequestSender {
         }
         throw dnsHttpError;
     }
+
+    /**
+     * Sends a request per element, so the progress of long lists is visible in the log.
+     */
+    protected <D, R extends NextDnsResponse<?>> void callApiForEach(List<D> requestList, Function<D, R> request) {
+        for (int i = 0; i < requestList.size(); i++) {
+            R response = request.apply(requestList.get(i));
+            if (ofNullable(response).map(NextDnsResponse::getErrors).isPresent()) {
+                Log.fail("Failed request: " + response.getErrors());
+            } else {
+                Log.progress("Current success progress: " + (i + 1) + "/" + requestList.size());
+            }
+        }
+        Log.common("\nCompleted");
+    }
+
 }

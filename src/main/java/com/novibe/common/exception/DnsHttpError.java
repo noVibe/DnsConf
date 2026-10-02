@@ -12,6 +12,7 @@ public class DnsHttpError extends RuntimeException {
 
     private final int code;
     private final String reason;
+    private final String requestUrl;
     private final Jsonable requestPayload;
 
     public DnsHttpError(HttpResponse<?> response, Jsonable requestPayload) {
@@ -22,6 +23,7 @@ public class DnsHttpError extends RuntimeException {
                 response.statusCode(),
                 response.body().toString()));
         this.code = response.statusCode();
+        this.requestUrl = response.request().uri().toString();
         this.reason = response.body().toString();
         this.requestPayload = requestPayload;
     }

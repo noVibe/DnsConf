@@ -1,11 +1,14 @@
-package com.novibe.common;
+package com.novibe.dns.cloudflare.http;
 
 import com.google.gson.Gson;
+import com.novibe.common.base_structures.DnsProfile;
 import com.novibe.common.exception.DnsHttpError;
-import org.junit.jupiter.api.BeforeEach;
+import com.novibe.dns.cloudflare.http.dto.response.list.MultiListApiResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
@@ -17,62 +20,61 @@ import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.withSettings;
 
 @ExtendWith(MockitoExtension.class)
-class HttpRequestSenderTest {
+class RequestCloudflareTest {
 
     private static final int RETRY_ATTEMPTS = 3;
 
     @Mock
     private HttpClient httpClient;
 
-    private HttpRequestSender sender;
+    @Spy
+    private Gson jsonMapper = new Gson();
 
-    @BeforeEach
-    void setUp() {
-        sender = mock(HttpRequestSender.class, withSettings().useConstructor().defaultAnswer(CALLS_REAL_METHODS));
-        sender.setHttpClient(httpClient);
-        sender.setJsonMapper(new Gson());
-        lenient().when(sender.apiUrl()).thenReturn("https://api.test");
-        lenient().when(sender.authHeaderName()).thenReturn("X-Api-Key");
-        lenient().when(sender.authHeaderValue()).thenReturn("secret");
-        lenient().when(sender.retryAttempts()).thenReturn(RETRY_ATTEMPTS);
-        lenient().when(sender.retryDelay()).thenReturn(Duration.ZERO);
-    }
+    @Spy
+    private DnsProfile dnsProfile = DnsProfile.builder().clientId("account").authSecret("token").build();
+
+    @Spy
+    @InjectMocks
+    private RequestCloudflare requestCloudflare;
 
     @Test
     void retriesRateLimitedRequestUntilItSucceeds() throws IOException, InterruptedException {
-        doReturn(response(429, "Rate exceeded"), response(200, "{\"value\":\"ok\"}"))
+        withoutRetryDelay();
+        doReturn(response(429, "rate limited"), response(200, "{\"success\":true}"))
                 .when(httpClient).send(any(), any());
 
-        TestResponse result = sender.get("/rewrites", TestResponse.class);
+        MultiListApiResponse response = requestCloudflare.get("/lists", MultiListApiResponse.class);
 
-        assertEquals("ok", result.value);
+        assertTrue(response.isSuccess());
         verify(httpClient, times(2)).send(any(), any());
     }
 
     @Test
     void retriesServerErrorsAsWell() throws IOException, InterruptedException {
-        doReturn(response(503, "Service Unavailable"), response(200, "{\"value\":\"ok\"}"))
+        withoutRetryDelay();
+        doReturn(response(503, "unavailable"), response(200, "{\"success\":true}"))
                 .when(httpClient).send(any(), any());
 
-        assertEquals("ok", sender.get("/rewrites", TestResponse.class).value);
+        assertTrue(requestCloudflare.get("/lists", MultiListApiResponse.class).isSuccess());
         verify(httpClient, times(2)).send(any(), any());
     }
 
     @Test
     void givesUpWhenTemporaryErrorKeepsRepeating() throws IOException, InterruptedException {
-        doReturn(response(429, "Rate exceeded")).when(httpClient).send(any(), any());
+        withoutRetryDelay();
+        doReturn(response(429, "rate limited")).when(httpClient).send(any(), any());
 
-        DnsHttpError error = assertThrows(DnsHttpError.class, () -> sender.get("/rewrites", TestResponse.class));
+        DnsHttpError error = assertThrows(DnsHttpError.class,
+                () -> requestCloudflare.get("/lists", MultiListApiResponse.class));
 
         assertEquals(429, error.getCode());
         verify(httpClient, times(RETRY_ATTEMPTS)).send(any(), any());
@@ -80,23 +82,23 @@ class HttpRequestSenderTest {
 
     @Test
     void doesNotRetryOnNotFound() throws IOException, InterruptedException {
-        doReturn(response(404, "")).when(httpClient).send(any(), any());
+        doReturn(response(404, "not found")).when(httpClient).send(any(), any());
 
-        sender.get("/rewrites", TestResponse.class);
+        assertThrows(DnsHttpError.class, () -> requestCloudflare.get("/lists", MultiListApiResponse.class));
 
-        verify(sender).react404(any());
         verify(httpClient, times(1)).send(any(), any());
+    }
+
+    private void withoutRetryDelay() {
+        doReturn(Duration.ZERO).when(requestCloudflare).retryDelay();
     }
 
     private HttpResponse<String> response(int statusCode, String body) {
         HttpResponse<String> response = mock();
         lenient().when(response.statusCode()).thenReturn(statusCode);
         lenient().when(response.body()).thenReturn(body);
-        lenient().when(response.request()).thenReturn(HttpRequest.newBuilder(URI.create("https://api.test/rewrites")).build());
+        lenient().when(response.request())
+                .thenReturn(HttpRequest.newBuilder(URI.create("https://api.cloudflare.test/lists")).build());
         return response;
-    }
-
-    private static class TestResponse {
-        private String value;
     }
 }
