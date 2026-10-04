@@ -1,9 +1,8 @@
 package com.novibe.common;
 
-import com.google.gson.Gson;
-import com.novibe.common.base_structures.DnsProfile;
 import com.novibe.common.exception.DnsHttpError;
 import com.novibe.common.util.Jsonable;
+import com.novibe.common.util.Log;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -12,6 +11,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import static java.util.Objects.isNull;
@@ -19,75 +20,87 @@ import static java.util.Objects.isNull;
 @Setter(onMethod_ = @Autowired)
 public abstract class HttpRequestSender {
 
+    private static final int FIRST_ATTEMPT = 1;
+
     private final Semaphore semaphore = new Semaphore(100);
 
     protected static final String GET = "GET";
     protected static final String POST = "POST";
     protected static final String DELETE = "DELETE";
 
-    protected abstract String apiUrl();
-
-    protected abstract String authHeaderName();
-
-    protected abstract String authHeaderValue();
-
-    protected abstract void react401();
-
-    protected abstract void react403();
-
-    protected abstract void react404(DnsHttpError dnsHttpError);
-
     protected HttpClient httpClient;
-    protected Gson jsonMapper;
-    protected DnsProfile dnsProfile;
 
-    public <T> T get(String path, Class<T> responseType) {
-        return sendRequest(GET, path, null, responseType);
+    protected abstract String requestUrl(String path);
+
+    protected abstract Map<String, String> headers();
+
+    protected abstract int retryAttempts();
+
+    protected abstract Duration retryDelay();
+
+    protected abstract void reactOnError(DnsHttpError dnsHttpError);
+
+    protected <R extends Jsonable> HttpResponse<String> sendRequest(String method, String path, R body) {
+        return sendRequest(method, path, body, FIRST_ATTEMPT);
     }
 
-    public <T, R extends Jsonable> T post(String path, R requestBody, Class<T> responseType) {
-        return sendRequest(POST, path, requestBody, responseType);
-    }
-
-    public <T> T delete(String path, Class<T> responseType) {
-        return sendRequest(DELETE, path, null, responseType);
-
-    }
-
-    protected <T, R extends Jsonable> T sendRequest(String method, String path, R body, Class<T> responseBody) {
-        URI uri = URI.create(apiUrl() + (isNull(path) ? "" : path));
-        HttpRequest.BodyPublisher requestBody;
-        if (isNull(body)) {
-            requestBody = HttpRequest.BodyPublishers.noBody();
-        } else {
-            requestBody = HttpRequest.BodyPublishers.ofString(body.toJson());
-        }
+    protected <R extends Jsonable> HttpResponse<String> sendRequest(String method, String path, R body, int attempt) {
         try {
-            semaphore.acquire();
+            HttpResponse<String> response = send(method, path, body);
+            int responseCode = response.statusCode();
 
-            HttpRequest request = HttpRequest.newBuilder(uri)
-                    .header(authHeaderName(), authHeaderValue())
-                    .header("Content-Type", "application/json")
-                    .method(method, requestBody)
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            semaphore.release();
-            if (response.statusCode() > 299) {
+            if (responseCode > 299) {
                 DnsHttpError httpError = new DnsHttpError(response, body);
-                switch (response.statusCode()) {
-                    case 401 -> react401();
-                    case 403 -> react403();
-                    case 404 -> react404(httpError);
-                    default -> throw httpError;
+                if (isTemporaryError(responseCode) && attempt < retryAttempts()) {
+                    waitForRetry(responseCode, attempt);
+                    return sendRequest(method, path, body, attempt + 1);
                 }
+                reactOnError(httpError);
             }
-            if (response.body().isEmpty()) {
-                return null;
-            }
-            return jsonMapper.fromJson(response.body(), responseBody);
+            return response;
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
+
+    private <R extends Jsonable> HttpResponse<String> send(String method, String path, R body)
+            throws IOException, InterruptedException {
+        HttpRequest.BodyPublisher requestBody = isNull(body)
+                ? HttpRequest.BodyPublishers.noBody()
+                : HttpRequest.BodyPublishers.ofString(body.toJson());
+
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(requestUrl(path)))
+                .method(method, requestBody);
+        headers().forEach(request::header);
+
+        semaphore.acquire();
+        try {
+            return httpClient.send(request.build(), HttpResponse.BodyHandlers.ofString());
+        } finally {
+            semaphore.release();
+        }
+    }
+
+    private static boolean isTemporaryError(int responseCode) {
+        return switch (responseCode) {
+            case 429, 524 -> true;
+            case int code when code >= 500 -> true;
+            default -> false;
+        };
+    }
+
+    private void waitForRetry(int responseCode, int attempt) {
+        Log.common("\nCode %s received. Attempt %s of %s, waiting %s seconds before retry"
+                .formatted(responseCode, attempt, retryAttempts(), retryDelay().toSeconds()));
+        for (long secondsLeft = retryDelay().toSeconds(); secondsLeft > 0; secondsLeft--) {
+            try {
+                Thread.sleep(Duration.ofSeconds(1));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+            Log.progress("Waiting for reset: " + secondsLeft + " seconds");
+        }
+    }
+
 }
