@@ -3,6 +3,7 @@ package com.novibe;
 
 import com.novibe.common.DnsTaskRunner;
 import com.novibe.common.base_structures.DnsProfile;
+import com.novibe.common.exception.ProfileFailureException;
 import com.novibe.common.exception.ProfileSetupException;
 import com.novibe.common.exception.UserInputException;
 import com.novibe.common.util.EnvParser;
@@ -45,7 +46,7 @@ public class App {
         commonContext.close();
 
         if (!profileFailuresCollector.isEmpty()) {
-            throw UserInputException.noStackTrace(profileFailuresCollector.summary(dnsProfiles.size()));
+            throw ProfileFailureException.noStackTrace(profileFailuresCollector.summary(dnsProfiles.size()));
         }
     }
 
