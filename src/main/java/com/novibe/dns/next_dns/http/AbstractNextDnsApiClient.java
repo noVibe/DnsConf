@@ -68,15 +68,20 @@ public abstract class AbstractNextDnsApiClient extends ApiRequestSender {
      * Sends a request per element, so the progress of long lists is visible in the log.
      */
     protected <D, R extends NextDnsResponse<?>> void callApiForEach(List<D> requestList, Function<D, R> request) {
-        for (int i = 0; i < requestList.size(); i++) {
-            R response = request.apply(requestList.get(i));
+        int succeeded = 0;
+        for (D requestData : requestList) {
+            R response = request.apply(requestData);
             if (ofNullable(response).map(NextDnsResponse::getErrors).isPresent()) {
                 Log.fail("Failed request: " + response.getErrors());
             } else {
-                Log.progress("Current success progress: " + (i + 1) + "/" + requestList.size());
+                Log.progress("Current success progress: " + ++succeeded + "/" + requestList.size());
             }
         }
-        Log.common("\nCompleted");
+        if (succeeded == requestList.size()) {
+            Log.common("\nCompleted");
+        } else {
+            Log.common("\nCompleted with %s requests failed of %s".formatted(requestList.size() - succeeded, requestList.size()));
+        }
     }
 
 }

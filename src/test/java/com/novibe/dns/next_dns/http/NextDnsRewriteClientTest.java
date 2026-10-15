@@ -10,7 +10,9 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -19,6 +21,8 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
@@ -70,6 +74,32 @@ class NextDnsRewriteClientTest {
 
         assertEquals(List.of(), nextDnsRewriteClient.fetchRewrites());
         verify(httpClient, times(2)).send(any(), any());
+    }
+
+    @Test
+    void countsOnlySuccessfulRequestsInProgress() throws IOException, InterruptedException {
+        doReturn(response(200, "{\"errors\":[{\"code\":\"conflict\"}]}"), response(200, "{}"))
+                .when(httpClient).send(any(), any());
+
+        String log = captureLog(() -> nextDnsRewriteClient.saveRewrites(List.of(
+                new CreateRewriteDto("chatgpt.com", "1.2.3.4"),
+                new CreateRewriteDto("openai.com", "1.2.3.4"))));
+
+        assertTrue(log.contains("Current success progress: 1/2"));
+        assertFalse(log.contains("2/2"));
+        assertTrue(log.contains("Completed with 1 requests failed of 2"));
+    }
+
+    private String captureLog(Runnable action) {
+        PrintStream original = System.out;
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(captured, true));
+        try {
+            action.run();
+        } finally {
+            System.setOut(original);
+        }
+        return captured.toString();
     }
 
     private HttpResponse<String> response(int statusCode, String body) {
