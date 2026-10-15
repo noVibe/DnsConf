@@ -14,6 +14,7 @@ jobs:
       DNS: ${{ vars.DNS }}
       BLOCK: ${{ vars.BLOCK }}
       REDIRECT: ${{ vars.REDIRECT }}
+      REDIRECT_SECTION: ${{ vars.REDIRECT_SECTION || 'Google Gemini AI' }}
       EXCLUDE_REDIRECT: ${{ vars.EXCLUDE_REDIRECT }}
       DONOR_DNS: ${{ vars.DONOR_DNS }}
 

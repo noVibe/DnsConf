@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Objects.nonNull;
 
@@ -29,11 +30,14 @@ public class NextDnsRewriteService {
         return rewriteDtos;
     }
 
-    public List<CreateRewriteDto> cleanupOutdatedAndExcluded(Map<String, CreateRewriteDto> newRewriteRequests) {
+    public List<CreateRewriteDto> cleanupOutdatedAndExcluded(
+            Map<String, CreateRewriteDto> newRewriteRequests, boolean restrictToNewDomains) {
         List<RewriteDto> existingRewrites = getExistingRewrites();
+        Set<String> allowedDomains = Set.copyOf(newRewriteRequests.keySet());
 
         List<String> outdatedIds = new ArrayList<>();
         List<String> ignoredIds = new ArrayList<>();
+        List<String> outsideSectionIds = new ArrayList<>();
 
         for (RewriteDto existingRewrite : existingRewrites) {
             String domain = existingRewrite.name();
@@ -41,6 +45,10 @@ public class NextDnsRewriteService {
             if (excludeRedirectCheckService.shouldExclude(domain)) {
                 ignoredIds.add(existingRewrite.id());
                 newRewriteRequests.remove(domain);
+                continue;
+            }
+            if (restrictToNewDomains && !allowedDomains.contains(domain)) {
+                outsideSectionIds.add(existingRewrite.id());
                 continue;
             }
             CreateRewriteDto request = newRewriteRequests.get(domain);
@@ -59,6 +67,10 @@ public class NextDnsRewriteService {
         if (!ignoredIds.isEmpty()) {
             Log.io("Removing %s excluded rewrites from NextDNS".formatted(ignoredIds.size()));
             nextDnsRewriteClient.deleteRewritesByIds(ignoredIds);
+        }
+        if (!outsideSectionIds.isEmpty()) {
+            Log.io("Removing %s rewrites outside the selected section from NextDNS".formatted(outsideSectionIds.size()));
+            nextDnsRewriteClient.deleteRewritesByIds(outsideSectionIds);
         }
         return List.copyOf(newRewriteRequests.values());
     }

@@ -41,6 +41,8 @@ values here: [Setup credentials](#setup-credentials)
 
 [Set up data sources](#set-up-data-sources)
 
+[Limit redirects to a source section](#limit-redirects-to-a-source-section-optional)
+
 [Set up exclude redirects (optional)](#set-up-exclude-redirects-optional)
 
 [Set up a DNS donor](#set-up-a-dns-donor)
@@ -140,6 +142,20 @@ for the further block processing.
 
 ---
 
+## Limit redirects to a source section (optional)
+
+Set the `REDIRECT_SECTION` environment variable to a section heading without `#`, for example `Google Gemini AI`
+for the [GeoHideDNS hosts file](https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hosts/hosts).
+This fork's scheduled workflow uses `Google Gemini AI` by default; the `REDIRECT_SECTION` variable in the `DNS`
+environment can override it.
+Only host entries between `# Google Gemini AI` and the next heading are used. Every `REDIRECT` source must contain
+the section; the run stops before changing rewrites if it is missing or contains no valid redirects.
+
+With `REDIRECT_SECTION` set, NextDNS removes existing rewrites outside the selected source entries, including
+manually added rewrites. Without it, existing rewrites outside the source remain untouched.
+
+---
+
 ## Set up exclude redirects (optional)
 
 Put domains to **environment variable** `EXCLUDE_REDIRECT` separated by coma, e.g. `instagram.com,twitch.com`
@@ -182,7 +198,7 @@ Thus, the new IPs will be used for the further redirect rules upload process.
 
 ### Restrictions
 
-All profiles get _similar_ settings. That means `BLOCK`, `REDIRECT` and `EXCLUDE_REDIRECT` are **shared**.
+All profiles get _similar_ settings. That means `BLOCK`, `REDIRECT`, `REDIRECT_SECTION` and `EXCLUDE_REDIRECT` are **shared**.
 
 ### Multiple profiles of single provider
 
@@ -224,7 +240,7 @@ For `REDIRECT`:
 
 + Existing domain will be updated if redirect IP has changed
 + If new domains are provided, they will be added
-+ The rest redirect settings are kept untouched
++ The rest redirect settings are kept untouched unless `REDIRECT_SECTION` is set
 
 For `BLOCK`:
 
@@ -245,7 +261,7 @@ Previously generated data is removed **ONLY** when both `BLOCK` and `REDIRECT` s
 2) Go _Settings_ => _Environments_
 3) Create _New environment_ with name `DNS`
 4) Provide `AUTH_SECRET` and `CLIENT_ID` to **Environment secrets**
-5) Provide `DNS`,`REDIRECT`, `BLOCK` and `EXCLUDE_REDIRECT` to **Environment variables**
+5) Provide `DNS`,`REDIRECT`, `BLOCK`, `REDIRECT_SECTION` and `EXCLUDE_REDIRECT` to **Environment variables**
 
 + The action will be executed every day at **01:30 UTC**. To set another time, change cron at
   `.github/workflows/github_action.yml`

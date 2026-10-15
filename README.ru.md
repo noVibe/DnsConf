@@ -39,6 +39,8 @@
 
 [Настройка источников данных](#настройка-источников-данных)
 
+[Ограничение редиректов секцией источника](#ограничение-редиректов-секцией-источника-опционально)
+
 [Настройка исключений редиректов (опционально)](#настройка-исключений-редиректов-опционально)
 
 [Настройка донора DNS](#dns-донор)
@@ -164,6 +166,21 @@ https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hos
 
 ---
 
+## Ограничение редиректов секцией источника (опционально)
+
+Задайте переменную окружения `REDIRECT_SECTION` равной заголовку секции без `#`. Например, значение
+`Google Gemini AI` выберет только записи между `# Google Gemini AI` и следующим заголовком в
+[списке GeoHideDNS](https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hosts/hosts).
+В расписании этого форка значение `Google Gemini AI` включено по умолчанию; его можно переопределить переменной
+`REDIRECT_SECTION` в окружении `DNS`.
+Секция должна присутствовать в каждом источнике `REDIRECT`. Если она отсутствует или не содержит корректных
+редиректов, запуск завершится до изменения редиректов.
+
+Если `REDIRECT_SECTION` задана, NextDNS удалит существующие редиректы вне выбранных записей, включая добавленные
+вручную. Без этой переменной редиректы вне источника останутся без изменений.
+
+---
+
 ## Настройка исключений редиректов (опционально)
 
 Добавьте домены в **переменную среды** `EXCLUDE_REDIRECT` через запятую, например:
@@ -206,7 +223,7 @@ https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hos
 
 ### Ограничения
 
-Все профили получат _одинаковые_ настройки. Другими словами, значения в `BLOCK`, `REDIRECT` и `EXCLUDE_REDIRECT` будут *
+Все профили получат _одинаковые_ настройки. Другими словами, значения в `BLOCK`, `REDIRECT`, `REDIRECT_SECTION` и `EXCLUDE_REDIRECT` будут *
 *общими**.
 
 ### Несколько профилей одного провайдера
@@ -262,7 +279,7 @@ https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hos
 
 + Существующий домен будет обновлён, если IP редиректа изменился
 + Новые домены будут добавлены к существующим
-+ Остальные настройки редиректов останутся без изменений
++ Остальные настройки редиректов останутся без изменений, если `REDIRECT_SECTION` не задана
 
 Для `BLOCK`:
 
@@ -285,7 +302,7 @@ https://www.youtube.com/watch?v=vbAXM_xAL5I
 2) Перейдите в _Settings_ → _Environments_
 3) Создайте _New environment_ с именем `DNS`
 4) Добавьте `AUTH_SECRET` и `CLIENT_ID` в **Environment secrets**
-5) Добавьте `DNS`, `REDIRECT`, `BLOCK` и `EXCLUDE_REDIRECT` в **Environment variables**
+5) Добавьте `DNS`, `REDIRECT`, `BLOCK`, `REDIRECT_SECTION` и `EXCLUDE_REDIRECT` в **Environment variables**
 
 + **Action** запускается ежедневно в **01:30 UTC** (04:30 по МСК).  
   Чтобы изменить время, отредактируйте cron в `.github/workflows/github_action.yml`

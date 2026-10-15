@@ -34,6 +34,7 @@ public class NextDnsTaskRunner extends DnsTaskRunner {
                 - each line is mapped to an IP–domain pair; lines that cannot be parsed are skipped.
                 - if provided only one type of sources, related settings will be updated; another type remain untouched.
                 - if EXCLUDE_REDIRECT domains provided, they will affect both existing and new redirect rules.
+                - if REDIRECT_SECTION is set, only that source section is used; NextDNS rewrites outside it are removed.
                 NextDNS api rate limiter reset config: 60 seconds after the last request""");
     }
 
@@ -65,7 +66,8 @@ public class NextDnsTaskRunner extends DnsTaskRunner {
 
             Log.step("Prepare rewrites");
             Map<String, CreateRewriteDto> requests = nextDnsRewriteService.buildNewRewrites(overrides);
-            List<CreateRewriteDto> createRewriteDtos = nextDnsRewriteService.cleanupOutdatedAndExcluded(requests);
+            List<CreateRewriteDto> createRewriteDtos = nextDnsRewriteService.cleanupOutdatedAndExcluded(
+                    requests, overrideListsLoader.isSectionRestricted());
 
             Log.step("Save rewrites");
             nextDnsRewriteService.saveRewrites(createRewriteDtos);

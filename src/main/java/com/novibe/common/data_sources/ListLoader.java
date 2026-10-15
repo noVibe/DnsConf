@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Loads hosts files, so requests need no credentials.
@@ -30,6 +31,10 @@ public abstract class ListLoader<T> extends HttpRequestSender {
     protected abstract String listType();
 
     protected abstract Predicate<HostsLine> filterRelatedLines();
+
+    protected Stream<String> sourceLines(String source) {
+        return DataParser.splitByEol(source);
+    }
 
     @Override
     protected String requestUrl(String path) {
@@ -68,7 +73,7 @@ public abstract class ListLoader<T> extends HttpRequestSender {
 
             return requests.stream()
                     .map(StructuredTaskScope.Subtask::get)
-                    .flatMap(DataParser::splitByEol)
+                    .flatMap(this::sourceLines)
                     .map(String::strip)
                     .parallel()
                     .filter(line -> !line.isBlank())

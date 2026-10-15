@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -56,6 +57,50 @@ class ListLoaderTest {
 
         assertEquals(List.of("chatgpt.com", "openai.com"), routes.stream().map(BypassRoute::website).toList());
         verify(httpClient, times(1)).send(any(), any());
+    }
+
+    @Test
+    void loadsOnlySelectedRedirectSection() throws IOException, InterruptedException {
+        String body = """
+                1.2.3.4 claude.ai
+                # Google Gemini AI
+                2.3.4.5 gemini.google.com
+                2.3.4.5 generativelanguage.googleapis.com
+                # Grok AI
+                3.4.5.6 grok.com
+                """;
+        doReturn(response(200, body, HOSTS_URL)).when(httpClient).send(any(), any());
+        HostsOverrideListsLoader restrictedLoader = spy(new HostsOverrideListsLoader());
+        doReturn("Google Gemini AI").when(restrictedLoader).selectedSection();
+        restrictedLoader.setHttpClient(httpClient);
+
+        List<BypassRoute> routes = restrictedLoader.fetchWebsites(List.of(HOSTS_URL));
+
+        assertEquals(List.of("gemini.google.com", "generativelanguage.googleapis.com"),
+                routes.stream().map(BypassRoute::website).toList());
+    }
+
+    @Test
+    void stopsWhenSelectedRedirectSectionIsMissing() throws IOException, InterruptedException {
+        doReturn(response(200, HOSTS_BODY, HOSTS_URL)).when(httpClient).send(any(), any());
+        HostsOverrideListsLoader restrictedLoader = spy(new HostsOverrideListsLoader());
+        doReturn("Google Gemini AI").when(restrictedLoader).selectedSection();
+        restrictedLoader.setHttpClient(httpClient);
+
+        assertTrue(assertThrows(Exception.class, () -> restrictedLoader.fetchWebsites(List.of(HOSTS_URL)))
+                .getMessage().contains("Redirect section not found"));
+    }
+
+    @Test
+    void stopsWhenSelectedRedirectSectionHasNoRoutes() throws IOException, InterruptedException {
+        doReturn(response(200, "# Google Gemini AI\n# Grok AI\n3.4.5.6 grok.com", HOSTS_URL))
+                .when(httpClient).send(any(), any());
+        HostsOverrideListsLoader restrictedLoader = spy(new HostsOverrideListsLoader());
+        doReturn("Google Gemini AI").when(restrictedLoader).selectedSection();
+        restrictedLoader.setHttpClient(httpClient);
+
+        assertTrue(assertThrows(Exception.class, () -> restrictedLoader.fetchWebsites(List.of(HOSTS_URL)))
+                .getMessage().contains("no valid routes"));
     }
 
     @Test
