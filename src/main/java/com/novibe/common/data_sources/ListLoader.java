@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @Setter(onMethod_ = @Autowired)
 public abstract class ListLoader<T> {
 
-    private static final String CHATGPT_OVERRIDE_IP = "45.155.204.190";
+    private static final String CHATGPT_OVERRIDE_IP = "37.230.192.51";
     private static final String GOOGLE_AI_OVERRIDE_IP = "37.230.192.51";
 
     private HttpClient client;
