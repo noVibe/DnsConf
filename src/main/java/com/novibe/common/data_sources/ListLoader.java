@@ -101,7 +101,7 @@ public abstract class ListLoader<T> {
                 line = replaceGeoHideIp(line, GOOGLE_AI_OVERRIDE_IP, geoHideIps);
             }
             result.append(line);
-            if (i < lines.length - 1) result.append('\\n');
+            if (i < lines.length - 1) result.append('\n');
         }
         return result.toString();
     }
