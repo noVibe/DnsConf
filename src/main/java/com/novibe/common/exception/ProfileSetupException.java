@@ -8,5 +8,5 @@ import lombok.experimental.StandardException;
  * Such failures are collected in {@link ProfileFailuresCollector} and reported at the end of the run.
  */
 @StandardException
-public abstract class ProfileSetupException extends RuntimeException {
+public class ProfileSetupException extends RuntimeException {
 }

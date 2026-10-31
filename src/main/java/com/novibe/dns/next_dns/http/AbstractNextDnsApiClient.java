@@ -2,7 +2,7 @@ package com.novibe.dns.next_dns.http;
 
 import com.novibe.common.http.ApiRequestSender;
 import com.novibe.common.exception.CredentialsException;
-import com.novibe.common.exception.DnsApiException;
+import com.novibe.common.exception.ProfileSetupException;
 import com.novibe.common.exception.DnsHttpError;
 import com.novibe.common.util.Log;
 import com.novibe.dns.next_dns.http.dto.response.NextDnsResponse;
@@ -73,7 +73,7 @@ public abstract class AbstractNextDnsApiClient extends ApiRequestSender {
         for (int i = 0; i < requestList.size(); i++) {
             R response = request.apply(requestList.get(i));
             if (ofNullable(response).map(NextDnsResponse::getErrors).isPresent()) {
-                throw new DnsApiException("Failed request %s of %s: %s"
+                throw new ProfileSetupException("Failed request %s of %s: %s"
                         .formatted(i + 1, requestList.size(), response.getErrors()));
             }
             Log.progress("Current success progress: " + (i + 1) + "/" + requestList.size());

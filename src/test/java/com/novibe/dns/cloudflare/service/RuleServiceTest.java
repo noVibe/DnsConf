@@ -1,6 +1,6 @@
 package com.novibe.dns.cloudflare.service;
 
-import com.novibe.common.exception.DnsApiException;
+import com.novibe.common.exception.ProfileSetupException;
 import com.novibe.dns.cloudflare.http.CloudflareRuleClient;
 import com.novibe.dns.cloudflare.http.dto.response.CloudflareApiMessage;
 import com.novibe.dns.cloudflare.http.dto.response.rule.GatewayRuleDto;
@@ -15,8 +15,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.StructuredTaskScope;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,7 +61,7 @@ class RuleServiceTest {
     void failsWhenApiRefusesToCreateBlockingRule() {
         when(cloudflareRuleClient.createBlockingRule(any())).thenReturn(refusedAnswer());
 
-        DnsApiException exception = assertThrows(DnsApiException.class,
+        ProfileSetupException exception = assertThrows(ProfileSetupException.class,
                 () -> ruleService.createNewBlockingRule(List.of(), RulePrecedenceCounter.providePrecedenceCounter(List.of())));
 
         assertTrue(exception.getMessage().startsWith("Failed to set blocking rule"));
@@ -69,11 +71,12 @@ class RuleServiceTest {
     void failsWhenApiRefusesToCreateOverrideRule() {
         when(cloudflareRuleClient.createBlockingRule(any())).thenReturn(refusedAnswer());
 
-        DnsApiException exception = assertThrows(DnsApiException.class,
+        StructuredTaskScope.FailedException exception = assertThrows(StructuredTaskScope.FailedException.class,
                 () -> ruleService.createNewOverrideRules(Map.of("1.2.3.4", List.of()),
                         RulePrecedenceCounter.providePrecedenceCounter(List.of())));
 
-        assertTrue(exception.getMessage().startsWith("Failed to set override rule for IP 1.2.3.4"));
+        ProfileSetupException refusal = assertInstanceOf(ProfileSetupException.class, exception.getCause());
+        assertTrue(refusal.getMessage().startsWith("Failed to set override rule for IP 1.2.3.4"));
     }
 
     @Test

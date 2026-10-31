@@ -8,7 +8,7 @@ import java.net.http.HttpResponse;
 import static java.util.Objects.isNull;
 
 @Getter
-public class DnsHttpError extends RuntimeException {
+public class DnsHttpError extends ProfileSetupException {
 
     private final int code;
     private final String reason;

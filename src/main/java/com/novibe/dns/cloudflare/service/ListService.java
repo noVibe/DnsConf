@@ -1,7 +1,7 @@
 package com.novibe.dns.cloudflare.service;
 
 import com.novibe.common.base_structures.BypassRoute;
-import com.novibe.common.exception.DnsApiException;
+import com.novibe.common.exception.ProfileSetupException;
 import com.novibe.common.service.ExcludeRedirectCheckService;
 import com.novibe.common.util.FunctionWrapper;
 import com.novibe.common.util.Log;
@@ -121,7 +121,7 @@ public class ListService {
                 }
             }
             if (!errors.isEmpty()) {
-                throw new DnsApiException("Failed to save new lists (%s of %s): %s"
+                throw new ProfileSetupException("Failed to save new lists (%s of %s): %s"
                         .formatted(errors.size(), createListRequests.size(), errors));
             }
             return result;
