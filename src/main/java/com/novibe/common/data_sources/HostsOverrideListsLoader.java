@@ -48,9 +48,12 @@ public class HostsOverrideListsLoader extends ListLoader<HostsOverrideListsLoade
 
     @Override
     protected BypassRoute toObject(String line) {
-        int delimiter = line.indexOf(" ");
-        String ip = line.substring(0, delimiter++);
-        String website = removeWWW(line.substring(delimiter).strip());
+        String[] fields = line.strip().split("\\s+", 3);
+        if (fields.length < 2) {
+            throw new IllegalArgumentException("Invalid hosts entry: " + line);
+        }
+        String ip = fields[0];
+        String website = removeWWW(fields[1]);
         return new BypassRoute(ip, website);
     }
 
