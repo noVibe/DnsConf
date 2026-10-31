@@ -90,6 +90,7 @@ public abstract class ListLoader<T> {
                 inChatGptBlock = true;
                 inGoogleAiBlock = false;
             } else if (header.startsWith("# google gemini ai") || header.startsWith("# google ai")) {
+                Log.io("Using GeoHide Google AI override IP: " + GOOGLE_AI_OVERRIDE_IP);
                 inChatGptBlock = false;
                 inGoogleAiBlock = true;
             } else if (header.startsWith("#")) {
