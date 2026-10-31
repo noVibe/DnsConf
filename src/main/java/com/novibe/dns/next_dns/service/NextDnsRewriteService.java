@@ -9,12 +9,11 @@ import com.novibe.dns.next_dns.http.dto.response.rewrite.RewriteDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-
-import static java.util.Objects.nonNull;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -28,26 +27,43 @@ public class NextDnsRewriteService {
         return rewriteDtos;
     }
 
-    public List<CreateRewriteDto> cleanupOutdated(Map<String, CreateRewriteDto> newRewriteRequests) {
-        List<RewriteDto> existingRewrites = getExistingRewrites();
-
-        List<String> outdatedIds = new ArrayList<>();
-
-        for (RewriteDto existingRewrite : existingRewrites) {
-            String domain = existingRewrite.name();
-            String oldIp = existingRewrite.content();
-            CreateRewriteDto request = newRewriteRequests.get(domain);
-            if (nonNull(request) && !request.content().equals(oldIp)) {
-                outdatedIds.add(existingRewrite.id());
-            } else {
-                newRewriteRequests.remove(domain);
-            }
+    /**
+     * Replaces the complete Rewrite configuration with the validated source snapshot.
+     * Denylist is deliberately not accessed by this service.
+     */
+    public void replaceAllAndVerify(Map<String, CreateRewriteDto> expectedRewrites) {
+        if (expectedRewrites == null || expectedRewrites.isEmpty()) {
+            throw new IllegalStateException("Rewrite source produced no valid domains; existing NextDNS Rewrite rules were left untouched.");
         }
-        if (!outdatedIds.isEmpty()) {
-            Log.io("Removing %s outdated rewrites from NextDNS".formatted(outdatedIds.size()));
-            NextDnsRateLimitedApiProcessor.callApi(outdatedIds, nextDnsRewriteClient::deleteRewriteById);
+
+        List<RewriteDto> existing = getExistingRewrites();
+        List<String> existingIds = existing.stream().map(RewriteDto::id).toList();
+
+        if (!existingIds.isEmpty()) {
+            Log.io("Removing all %s existing Rewrite rules".formatted(existingIds.size()));
+            NextDnsRateLimitedApiProcessor.callApi(existingIds, nextDnsRewriteClient::deleteRewriteById);
         }
-        return List.copyOf(newRewriteRequests.values());
+
+        List<CreateRewriteDto> requests = List.copyOf(expectedRewrites.values());
+        Log.io("Creating %s Rewrite rules from source".formatted(requests.size()));
+        NextDnsRateLimitedApiProcessor.callApi(requests, nextDnsRewriteClient::saveRewrite);
+
+        Log.io("Verifying applied Rewrite rules in NextDNS");
+        List<RewriteDto> actual = nextDnsRewriteClient.fetchRewrites();
+        Set<String> expected = new HashSet<>();
+        expectedRewrites.values().forEach(rule -> expected.add(rule.name() + "=" + rule.content()));
+        Set<String> received = new HashSet<>();
+        actual.forEach(rule -> received.add(rule.name() + "=" + rule.content()));
+
+        if (!expected.equals(received)) {
+            Set<String> missing = new HashSet<>(expected);
+            missing.removeAll(received);
+            Set<String> unexpected = new HashSet<>(received);
+            unexpected.removeAll(expected);
+            throw new IllegalStateException("NextDNS Rewrite verification failed. Expected %s rules, received %s; missing=%s, unexpected=%s"
+                    .formatted(expected.size(), received.size(), missing.size(), unexpected.size()));
+        }
+        Log.common("Rewrite successfully verified: %s rules".formatted(actual.size()));
     }
 
     public List<RewriteDto> getExistingRewrites() {
@@ -61,11 +77,9 @@ public class NextDnsRewriteService {
     }
 
     public void removeAll() {
-        Log.io("Fetching existing rewrites from NextDNS");
-        List<RewriteDto> list = nextDnsRewriteClient.fetchRewrites();
+        List<RewriteDto> list = getExistingRewrites();
         List<String> ids = list.stream().map(RewriteDto::id).toList();
-        Log.io("Removing rewrites from NextDNS");
+        Log.io("Removing %s rewrites from NextDNS".formatted(ids.size()));
         NextDnsRateLimitedApiProcessor.callApi(ids, nextDnsRewriteClient::deleteRewriteById);
     }
-
 }
