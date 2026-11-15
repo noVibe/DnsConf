@@ -2,7 +2,7 @@ package com.novibe.dns.next_dns.http;
 
 import com.google.gson.Gson;
 import com.novibe.common.base_structures.DnsProfile;
-import com.novibe.common.exception.DnsApiException;
+import com.novibe.common.exception.ProfileSetupException;
 import com.novibe.dns.next_dns.http.dto.request.CreateRewriteDto;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,7 +61,7 @@ class NextDnsRewriteClientTest {
     void failsOnFirstRefusedRewrite() throws IOException, InterruptedException {
         doReturn(response(200, "{\"errors\":[{\"code\":\"conflict\"}]}")).when(httpClient).send(any(), any());
 
-        DnsApiException exception = assertThrows(DnsApiException.class, () -> nextDnsRewriteClient.saveRewrites(List.of(
+        ProfileSetupException exception = assertThrows(ProfileSetupException.class, () -> nextDnsRewriteClient.saveRewrites(List.of(
                 new CreateRewriteDto("chatgpt.com", "1.2.3.4"),
                 new CreateRewriteDto("openai.com", "1.2.3.4"))));
 
@@ -73,7 +73,7 @@ class NextDnsRewriteClientTest {
     void failsWhenApiRefusesToDeleteRewrite() throws IOException, InterruptedException {
         doReturn(response(200, "{\"errors\":[{\"code\":\"notFound\"}]}")).when(httpClient).send(any(), any());
 
-        assertThrows(DnsApiException.class,
+        assertThrows(ProfileSetupException.class,
                 () -> nextDnsRewriteClient.deleteRewritesByIds(List.of("first", "second", "third")));
 
         verify(httpClient, times(1)).send(any(), any());

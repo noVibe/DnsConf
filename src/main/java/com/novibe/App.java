@@ -10,11 +10,16 @@ import com.novibe.common.util.EnvParser;
 import com.novibe.common.util.Log;
 import com.novibe.common.util.ProfileFailuresCollector;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
+import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 public class App {
@@ -32,13 +37,15 @@ public class App {
                 DnsTaskRunner runner = currentContext.getBean(DnsTaskRunner.class);
                 runner.run();
 
-            } catch (ProfileSetupException profileSetupException) {
+            } catch (Exception exception) {
+                ProfileSetupException profileSetupException = profileSetupCause(exception);
+                if (isNull(profileSetupException)) {
+                    Log.fail("Unexpected exception on profile " + dnsProfile.number());
+                    throw exception;
+                }
                 Log.fail("%s on profile %s".formatted(profileSetupException.getClass().getSimpleName(), dnsProfile.number()));
                 Log.fail(profileSetupException.getMessage());
                 profileFailuresCollector.add(dnsProfile, profileSetupException);
-            } catch (Exception exception) {
-                Log.fail("Unexpected exception on profile " + dnsProfile.number());
-                throw exception;
             } finally {
                 if (nonNull(currentContext)) currentContext.close();
             }
@@ -48,6 +55,19 @@ public class App {
         if (!profileFailuresCollector.isEmpty()) {
             throw ProfileFailureException.noStackTrace(profileFailuresCollector.summary(dnsProfiles.size()));
         }
+    }
+
+    /**
+     * Executors and task scopes wrap what a subtask threw, so the profile failure can sit a few levels deep.
+     */
+    static @Nullable ProfileSetupException profileSetupCause(Throwable thrown) {
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Throwable current = thrown; nonNull(current) && seen.add(current); current = current.getCause()) {
+            if (current instanceof ProfileSetupException profileSetupException) {
+                return profileSetupException;
+            }
+        }
+        return null;
     }
 
     private static AnnotationConfigApplicationContext loadCommonApplicationContext() {
