@@ -2,6 +2,7 @@ package com.novibe.common.util;
 
 import com.novibe.common.base_structures.BypassRoute;
 import com.novibe.common.base_structures.DnsProfile;
+import com.novibe.common.exception.ProfileSetupException;
 import com.novibe.common.exception.UserInputException;
 import lombok.Cleanup;
 import org.xbill.DNS.ARecord;
@@ -16,12 +17,15 @@ import org.xbill.DNS.Type;
 
 import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.SequencedSet;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.isNull;
@@ -32,10 +36,25 @@ public class DonorDnsUtils {
         Resolver dnsResolver = getDnsResolver(dnsProfile);
         dnsResolver.setTimeout(Duration.ofSeconds(5));
         @Cleanup ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+        List<Replacement> replacements = new ArrayList<>();
         for (BypassRoute bypassRoute : bypassRoutes) {
-            Log.io("Comparing IP for %s with DNS query to %s".formatted(bypassRoute.website(), dnsProfile.donorDns()));
-            executor.submit(() -> replaceIp(bypassRoute, dnsResolver));
+            String domain = bypassRoute.website();
+            Log.io("Comparing IP for %s with DNS query to %s".formatted(domain, dnsProfile.donorDns()));
+            replacements.add(new Replacement(domain, executor.submit(() -> replaceIp(bypassRoute, dnsResolver))));
         }
+        for (Replacement replacement : replacements) {
+            try {
+                replacement.task().get();
+            } catch (ExecutionException e) {
+                throw new ProfileSetupException("Failed to replace donor DNS IP for " + replacement.domain(), e.getCause());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ProfileSetupException("Interrupted while replacing donor DNS IPs", e);
+            }
+        }
+    }
+
+    private record Replacement(String domain, Future<?> task) {
     }
 
     private static void replaceIp(BypassRoute bypassRoute, Resolver dnsResolver) {
