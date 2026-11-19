@@ -41,6 +41,8 @@ class ListLoaderTest {
             1.2.3.4 openai.com
             """;
 
+    private static final String MULTI_HOSTS_BODY = "1.2.3.4 chatgpt.com openai.com";
+
     @Mock
     private HttpClient httpClient;
 
@@ -56,6 +58,15 @@ class ListLoaderTest {
 
         assertEquals(List.of("chatgpt.com", "openai.com"), routes.stream().map(BypassRoute::website).toList());
         verify(httpClient, times(1)).send(any(), any());
+    }
+
+    @Test
+    void loadsRoutesFromMultiHostLine() throws IOException, InterruptedException {
+        doReturn(response(200, MULTI_HOSTS_BODY, HOSTS_URL)).when(httpClient).send(any(), any());
+
+        List<BypassRoute> routes = loader.fetchWebsites(List.of(HOSTS_URL));
+
+        assertEquals(List.of("chatgpt.com", "openai.com"), routes.stream().map(BypassRoute::website).toList());
     }
 
     @Test

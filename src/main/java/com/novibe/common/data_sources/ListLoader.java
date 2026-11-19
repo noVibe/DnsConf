@@ -11,7 +11,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -75,7 +74,7 @@ public abstract class ListLoader<T> extends HttpRequestSender {
                     .filter(line -> !DataParser.isComment(line))
                     .map(String::toLowerCase)
                     .map(DataParser::parseHostsLine)
-                    .filter(Objects::nonNull)
+                    .flatMap(List::stream)
                     .filter(filterRelatedLines())
                     .distinct()
                     .map(this::toObject)
