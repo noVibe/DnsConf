@@ -37,9 +37,9 @@ public class NextDnsRewriteService {
 
         if (isRequiresCompression(existingRewrites)) {
             Log.common("Compression enabled, but existing rewrites are not compressed yet.");
-            Log.step("Removing existing rewrites to apply compression next");
-            removeAll();
-            return List.copyOf(newRewriteRequests.values());
+            Log.io("Removing %s existing rewrites to apply compression".formatted(existingRewrites.size()));
+            nextDnsRewriteClient.deleteRewritesByIds(existingRewrites.stream().map(RewriteDto::id).toList());
+            existingRewrites = List.of();
         }
 
         List<String> outdatedIds = new ArrayList<>();

@@ -178,6 +178,36 @@ Thus, the new IPs will be used for the further redirect rules upload process.
 
 ---
 
+## Set up redirects compression (optional, NextDNS only)
+
+NextDNS applies a redirect rule to the domain and all its subdomains, so large hosts-files can be shrunk to fit the
+rewrites limit. Set **environment variable** `COMPRESS` to `true` to enable it (any other value or no value keeps it off).
+
+Before upload, the script drops:
+
+- duplicate domains (the first IP of a domain is kept);
+- subdomains of domains that are listed too.
+
+For instance, hosts-file lines:
+
+    1.2.3.4 google.com
+    1.2.3.4 gemini.google.com
+    1.2.3.4 a.example.com
+    1.2.3.4 b.example.com
+
+turn into:
+
+    1.2.3.4 google.com
+    1.2.3.4 a.example.com
+    1.2.3.4 b.example.com
+
+Note that a dropped subdomain gets the IP of its parent domain, even if the hosts-file set a different IP for it.
+
+When compression is turned on and the existing NextDNS redirects are not compressed yet, all of them are removed and
+uploaded again in compressed form.
+
+---
+
 ## Multiple profiles setup
 
 ### Restrictions
@@ -245,7 +275,8 @@ Previously generated data is removed **ONLY** when both `BLOCK` and `REDIRECT` s
 2) Go _Settings_ => _Environments_
 3) Create _New environment_ with name `DNS`
 4) Provide `AUTH_SECRET` and `CLIENT_ID` to **Environment secrets**
-5) Provide `DNS`,`REDIRECT`, `BLOCK` and `EXCLUDE_REDIRECT` to **Environment variables**
+5) Provide `DNS`,`REDIRECT`, `BLOCK` and `EXCLUDE_REDIRECT` to **Environment variables**. Optional `DONOR_DNS` and
+   `COMPRESS` go there too
 
 + The action will be executed every day at **01:30 UTC**. To set another time, change cron at
   `.github/workflows/github_action.yml`
