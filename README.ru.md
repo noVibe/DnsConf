@@ -202,6 +202,37 @@ https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/refs/heads/main/hos
 
 ---
 
+## Сжатие редиректов (опционально, только NextDNS)
+
+NextDNS применяет правило перенаправления к домену и всем его поддоменам, поэтому большой hosts-файл можно сжать, чтобы
+он поместился в лимит правил. Чтобы включить сжатие, задайте **переменную среды** `COMPRESS` со значением `true`
+(любое другое значение или его отсутствие оставляют сжатие выключенным).
+
+Перед загрузкой скрипт выкинет:
+
+- дубли доменов (остаётся первый IP домена);
+- поддомены доменов, которые тоже есть в списке.
+
+Например, строки hosts-файла:
+
+    1.2.3.4 google.com
+    1.2.3.4 gemini.google.com
+    1.2.3.4 a.example.com
+    1.2.3.4 b.example.com
+
+превратятся в:
+
+    1.2.3.4 google.com
+    1.2.3.4 a.example.com
+    1.2.3.4 b.example.com
+
+Учтите, что выкинутый поддомен получит IP родительского домена, даже если в hosts-файле для него был указан другой IP.
+
+Если сжатие включено, а существующие редиректы в NextDNS ещё не сжаты, все они будут удалены и загружены заново в
+сжатом виде.
+
+---
+
 ## Настройка сразу нескольких профилей
 
 ### Ограничения
@@ -285,7 +316,8 @@ https://www.youtube.com/watch?v=vbAXM_xAL5I
 2) Перейдите в _Settings_ → _Environments_
 3) Создайте _New environment_ с именем `DNS`
 4) Добавьте `AUTH_SECRET` и `CLIENT_ID` в **Environment secrets**
-5) Добавьте `DNS`, `REDIRECT`, `BLOCK` и `EXCLUDE_REDIRECT` в **Environment variables**
+5) Добавьте `DNS`, `REDIRECT`, `BLOCK` и `EXCLUDE_REDIRECT` в **Environment variables**. Туда же добавляются
+   опциональные `DONOR_DNS` и `COMPRESS`
 
 + **Action** запускается ежедневно в **01:30 UTC** (04:30 по МСК).  
   Чтобы изменить время, отредактируйте cron в `.github/workflows/github_action.yml`
