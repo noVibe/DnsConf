@@ -47,6 +47,18 @@ public class DataParser {
         return EOL.splitAsStream(data);
     }
 
+    public static String trimWebsiteToDomainLevel(String website, int level) {
+        for (int currentLevel = 0, i = website.length() - 1; i >= 0; i--) {
+            if (website.charAt(i) == '.') {
+                currentLevel++;
+                if (level == currentLevel) {
+                    return website.substring(i + 1);
+                }
+            }
+        }
+        return website;
+    }
+
     private static String stripInlineComment(String line) {
         int commentIndex = line.indexOf('#');
         if (commentIndex >= 0) {

@@ -4,6 +4,7 @@ import com.novibe.common.DnsTaskRunner;
 import com.novibe.common.base_structures.BypassRoute;
 import com.novibe.common.util.DonorDnsUtils;
 import com.novibe.common.util.EnvParser;
+import com.novibe.common.util.HostsCompressor;
 import com.novibe.common.util.Log;
 import com.novibe.dns.next_dns.http.dto.request.CreateRewriteDto;
 import com.novibe.dns.next_dns.service.NextDnsDenyService;
@@ -14,8 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
-import static com.novibe.common.config.EnvironmentVariables.BLOCK;
-import static com.novibe.common.config.EnvironmentVariables.REDIRECT;
+import static com.novibe.common.config.EnvironmentVariables.*;
 import static java.util.Objects.nonNull;
 
 @Service
@@ -57,6 +57,10 @@ public class NextDnsTaskRunner extends DnsTaskRunner {
 
             Log.step("Obtain rewrite lists from %s sources".formatted(rewriteSources.size()));
             List<BypassRoute> overrides = overrideListsLoader.fetchWebsites(rewriteSources);
+
+            if (COMPRESS) {
+                HostsCompressor.compress(overrides);
+            }
 
             if (nonNull(dnsProfile.donorDns())) {
                 Log.step("Replace IP of domains via IPs from " + dnsProfile.donorDns());
