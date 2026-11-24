@@ -59,6 +59,21 @@ class ListLoaderTest {
     }
 
     @Test
+    void loadsRoutesFromMultiHostLine() throws IOException, InterruptedException {
+        doReturn(response(200, "1.2.3.4 chatgpt.com openai.com", HOSTS_URL)).when(httpClient).send(any(), any());
+
+        List<BypassRoute> routes = loader.fetchWebsites(List.of(HOSTS_URL));
+
+        assertEquals(
+                List.of(
+                        new BypassRoute("1.2.3.4", "chatgpt.com"),
+                        new BypassRoute("1.2.3.4", "openai.com")
+                ),
+                routes
+        );
+    }
+
+    @Test
     void retriesWhenSourceIsTemporarilyUnavailable() throws IOException, InterruptedException {
         withoutRetryDelay();
         doReturn(response(429, "too many requests", HOSTS_URL),
