@@ -2,7 +2,7 @@ name: DNS Block&Redirect Configurer cron task
 
 on:
   schedule:
-    - cron: '30 1 * * *' # 04:30 MSK (01:30 UTC)
+    - cron: '30 */6 * * *' # 04:30 MSK (01:30 UTC)
   workflow_dispatch:
 
 # Two runs at once read and write the same dns profile, so a new run replaces the one in progress
